@@ -1,0 +1,21 @@
+services:
+  hunyuan3d:
+    build: .
+    container_name: hunyuan3d-gen
+    volumes:
+      - .:/app
+      - ./weights:/app/weights
+    ports:
+      - "8080:8080"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
+    tty: true
+    stdin_open: true

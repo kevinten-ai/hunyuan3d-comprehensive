@@ -1,0 +1,24 @@
+--find-links https://download.pytorch.org/whl/cu121
+torch==2.6.0
+torchvision==0.21.0
+diffusers
+numpy==1.26.4
+transformers
+rembg
+tqdm
+omegaconf
+matplotlib
+opencv-python
+imageio
+jaxtyping
+einops
+SentencePiece
+accelerate
+trimesh
+PyMCubes
+xatlas
+libigl
+typeguard
+open3d
+ninja
+roma
