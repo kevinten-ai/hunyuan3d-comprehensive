@@ -1,133 +1,149 @@
-# Hunyuan3D-Comprehensive: Research & Implementation
+# 🎯 拓竹3D打印机 AI模型生成方案
 
-<div align="center">
-  <img src="Hunyuan3D-1/assets/logo.png" height="150">
-  <p><strong>A unified framework for high-fidelity Text-to-3D and Image-to-3D generation.</strong></p>
-  
-  <p>
-    <img src="https://img.shields.io/badge/Version-2026_Q2_Updated-blue.svg">
-    <img src="https://img.shields.io/badge/License-Tencent_Non--Commercial-orange.svg">
-    <img src="https://img.shields.io/badge/Framework-PyTorch-red.svg">
-    <img src="https://img.shields.io/badge/Research-SOTA_2026-green.svg">
-  </p>
-</div>
+> 用AI从文字/图片生成3D模型，直接打印！
+
+**一句话说明**：这是一个本地部署的3D生成AI，可以为你的拓竹(Bambu Lab)打印机创建独特的3D模型。
 
 ---
 
-## 🌟 Overview
+## ⚡ 快速开始
 
-This repository is a comprehensive monorepo consolidating Tencent's **Hunyuan3D** ecosystem. It bridges the gap between the foundational **Hunyuan3D-1.0** (MVD-SVRM architecture) and the cutting-edge **Hunyuan3D-2.0/2.5** (DiT-FlowMatching), while providing a strategic research outlook into the **2026 Q2 SOTA** landscape (including Hunyuan3D 3.1).
+```bash
+# 1️⃣ 生成模型 - 文字描述
+python scripts/hunyuan_quick.py text "一只可爱的兔子"
 
-### 🚀 Key Highlights (2026 Update)
-- **Hunyuan3D 3.1 Ready**: Support for **Eight-View Generation** (eliminating blind spots) and **Interactive Brush**-guided refinement.
-- **Dual-Generation Pipelines**: 
-  - **V1 (Fast)**: Lite/Standard pipelines for rapid reconstruction (<10s).
-  - **V2 (Fidelity)**: DiT-based shape generation + Paint-based 4K PBR texture synthesis.
-- **Production-Ready**: Native **Quad-Mesh** topology and full PBR material support (Albedo, Normal, Roughness, Metalness).
+# 2️⃣ 收集到模型库
+python scripts/model_collector.py add ./outputs/model.stl animals my_rabbit
 
----
+# 3️⃣ 导出打印
+python scripts/model_collector.py export my_rabbit
+# → 文件在 models/ready-to-print/ 文件夹中
 
-## 📊 Performance Matrix (2026 SOTA)
-
-| Feature | Hunyuan3D 3.1 (Latest) | Rodin Gen-2 | Tripo P1.0 | Trellis 3D |
-| :--- | :--- | :--- | :--- | :--- |
-| **Resolution** | **3.6B Voxels (1536³)** | 10B Params | Game-Ready | High-Precision |
-| **Speed** | 20-40s | 30-60s | **2-10s (Instant)** | 10-25s |
-| **View Support** | **8-View (Omni)** | 4-6 View | 4 View | 4 View |
-| **Topology** | Optimized Quad | Pro Quad | **Native Quad** | High-Poly Tri |
-| **Interaction** | **Interactive Brush** | Semantic Edit | Stylization | Local Edit |
-
----
-
-## 🏗️ Architecture Evolution
-
-1.  **Stage 1 (V1.0)**: Multi-view Diffusion (MVD) + Sparse-view Reconstruction (SVRM). Focus on speed.
-2.  **Stage 2 (V2.0/2.5)**: Diffusion Transformer (DiT) + Flow Matching. Focus on geometric fidelity and PBR textures.
-3.  **Stage 3 (V3.1 - 2026)**: Eight-View Reference Injection + Interactive Guidance. Focus on "Zero-Blind-Spot" production and human-in-the-loop refinement.
-
----
-
-## 📂 Repository Structure
-
-```text
-.
-├── Hunyuan3D-1/             # V1.0: Multi-view Diffusion & SVRM
-│   └── 3D_AI_Models_2026.md # 2026 Research Report (latest)
-├── Hunyuan3D-2/             # V2.0/2.5: DiT & PBR Texture Synthesis
-├── GEMINI.md                # Technical context for AI agents
-└── README.md                # You are here
+# 4️⃣ 用Bambu Studio打开STL文件，开始打印！
 ```
 
 ---
 
-## 🛠️ Getting Started
+## 📦 项目包含什么
 
-### 1. Installation
+| 模块 | 用途 | 位置 |
+|------|------|------|
+| **Hunyuan3D-1** | 文字生成3D (Text-to-3D) | `Hunyuan3D-1/` |
+| **Hunyuan3D-2** | 图片生成3D (Image-to-3D) | `Hunyuan3D-2/` |
+| **scripts/** | 工具脚本 | 模型收集、格式转换 |
+| **models/** | 模型库 | 收藏的3D模型 |
 
-#### For Hunyuan3D-1.0:
+---
+
+## 🔥 两种生成方式
+
+### 方式一：文字 → 3D模型 (V1)
 ```bash
 cd Hunyuan3D-1
-conda create -n hunyuan3d-1 python=3.10
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+python main.py --text_prompt "一只卡通龙" --use_lite
+```
+- 优点：不需要图片，直接描述即可
+- 速度：约10秒
+- 适合：快速创意验证
+
+### 方式二：图片 → 3D模型 (V2)
+```bash
+cd Hunyuan3D-2
+python minimal_demo.py
+```
+- 优点：质量更高，有PBR纹理
+- 速度：约20-40秒
+- 适合：高精度打印
+
+---
+
+## 🛠️ 工具脚本
+
+| 脚本 | 命令 | 功能 |
+|------|------|------|
+| 一键生成 | `hunyuan_quick.py text "描述"` | 文字生成 |
+| 一键生成 | `hunyuan_quick.py image 图片路径` | 图片生成 |
+| 模型收集 | `model_collector.py add 文件 分类 名称` | 添加到库 |
+| 模型收集 | `model_collector.py list` | 查看模型库 |
+| 格式转换 | `model_converter.py repair 文件` | 修复模型 |
+| 格式转换 | `model_converter.py convert 文件 stl` | 转换为STL |
+
+---
+
+## 📁 目录结构
+
+```
+d:/projects/3d/
+├── Hunyuan3D-1/              # 文字→3D (快速)
+├── Hunyuan3D-2/              # 图片→3D (高质量)
+├── scripts/                  # 工具脚本
+│   ├── hunyuan_quick.py     # 一键生成
+│   ├── model_collector.py   # 模型管理
+│   └── model_converter.py   # 格式转换/修复
+├── models/
+│   ├── collection/          # 收藏的模型
+│   └── ready-to-print/      # 可直接打印的STL
+└── outputs/                  # 临时输出
+```
+
+---
+
+## 🖨️ 拓竹打印设置建议
+
+| 类型 | 层高 | 填充 | 适用场景 |
+|------|------|------|----------|
+| 标准 | 0.2mm | 15-20% | 日常打印 |
+| 高精度 | 0.12mm | 15-20% | 精细模型 |
+| 机械零件 | 0.16mm | 40-60% | 功能件 |
+
+---
+
+## 📥 安装依赖
+
+```bash
+# 基础环境 (V2)
+cd Hunyuan3D-2
+pip install -r requirements.txt
+
+# 拓竹支持（格式转换用）
+pip install trimesh numpy
+
+# 可选：V1文字生成
+cd Hunyuan3D-1
 bash env_install.sh
 ```
 
-#### For Hunyuan3D-2.0:
+---
+
+## ❓ 常见问题
+
+**Q: 显存不够 (OOM)?**
 ```bash
-cd Hunyuan3D-2
-pip install -r requirements.txt
-pip install -e .
-# Compile custom texture operators
-cd hy3dgen/texgen/custom_rasterizer && python setup.py install
+# V1 添加 --save_memory
+# V2 添加 --low_vram_mode
 ```
 
-### 2. Inference Quickstart
-
-**Hunyuan3D-1 (Text-to-3D):**
+**Q: 模型有裂缝/破面？**
 ```bash
-python Hunyuan3D-1/main.py --text_prompt "a dragon statue" --do_render
+python scripts/model_converter.py repair 模型.stl
 ```
 
-**Hunyuan3D-2 (Image-to-3D):**
-```bash
-python Hunyuan3D-2/minimal_demo.py # Uses assets/demo.png
-```
+**Q: 生成速度慢？**
+- V1的Lite模式更快（质量略低）
+- V2的Turbo版本更快
 
 ---
 
-## 📅 Roadmap 2026
+## 🔗 相关文档
 
-- [x] **Q1 2026**: Integration of Hunyuan3D 3.1 Eight-View Research.
-- [ ] **Q2 2026**: Support for **Hunyuan-Omni** controllable generation (Point Cloud/Skeleton).
-- [ ] **Q3 2026**: Automated **LOD (Level of Detail)** generation for mobile game engines.
-- [ ] **Q4 2026**: Real-time **Neural Rendering (NeRF/Gaussian Splatting)** integration.
-
----
-
-## ❓ FAQ & Troubleshooting
-
-**Q: Out of Memory (OOM) on 16GB VRAM?**
-A: Use `--save_memory` in V1 or `--low_vram_mode` in V2. Also, ensure `xformers` is installed.
-
-**Q: Ninja compilation fails?**
-A: Ensure `Visual Studio Build Tools` (Windows) or `gcc/g++` (Linux) are correctly configured in your PATH.
+- [拓竹打印工作流](./PRINT_WORKFLOW.md) - 完整流程详解
+- [Hunyuan3D-1 中文文档](./Hunyuan3D-1/README_zh_cn.md)
+- [Hunyuan3D-2 中文文档](./Hunyuan3D-2/README_zh_cn.md)
 
 ---
 
-## 📜 Documentation & Research
-- [**2026 Research Report**](./Hunyuan3D-1/3D_AI_Models_Research_2026.md): Deep dive into Eight-View generation, Brush interaction, and the shift to LATTICE-based 10B parameter models.
-- [**Hunyuan3D-1 Readme**](./Hunyuan3D-1/README.md)
-- [**Hunyuan3D-2 Readme**](./Hunyuan3D-2/README.md)
+<div align="center">
 
----
+**🎉 开始为你的拓竹打印机创造独特的3D模型吧！**
 
-## 🤝 Citation & Licensing
-This project includes code from Tencent Hunyuan3D, licensed under the **TENCENT HUNYUAN NON-COMMERCIAL LICENSE**. 
-
-```bibtex
-@misc{hunyuan3d2026,
-    title={Hunyuan3D Comprehensive: Evolution from MVD to 8-View Interaction},
-    author={kevinten-ai Research Team},
-    year={2026}
-}
-```
+</div>

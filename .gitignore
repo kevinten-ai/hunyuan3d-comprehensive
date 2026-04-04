@@ -13,7 +13,8 @@ venv/
 env/
 Lib/
 Include/
-Scripts/
+# Scripts/ - Windows virtualenv, but allow our scripts/ directory
+!scripts/
 
 # ML Weights & Large Files
 **/weights/
