@@ -1,38 +1,48 @@
-# OS
-.DS_Store
-Thumbs.db
-*.tmp
+# ComfyUI (通过submodule引用，不需要在git中)
+# ComfyUI/models 包含大型模型文件
+ComfyUI/models/
+ComfyUI/models/checkpoints/*.safetensors
+ComfyUI/models/diffusion_models/*.safetensors
+ComfyUI/output/
 
 # Python
 __pycache__/
 *.py[cod]
-*.class
+*.egg-info/
+.eggs/
+dist/
+build/
+*.whl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 虚拟环境
 venv/
-.env
 .venv/
 env/
-Lib/
-Include/
-# Scripts/ - Windows virtualenv, but allow our scripts/ directory
-!scripts/
 
-# ML Weights & Large Files
-**/weights/
-**/checkpoints/
-**/*.pth
-**/*.safetensors
-**/*.bin
-**/*.onnx
-**/*.glb
-**/*.obj
-**/*.gif
-**/*.png
-**/*.jpg
-**/*.jpeg
+# 临时文件
+*.log
+*.tmp
+.DS_Store
 
-# Research/Output
-**/outputs/
-**/test/
+# 配置文件
+config/printer.json
 
-# Git
-.git/
+# 模型文件
+outputs/
+models/ready-to-print/
+*.stl
+*.obj
+*.glb
+
+# 历史记录
+.continuous_*.json
+.3d_print_queue/
+
+# Hunyuan3D 原始目录 (如果有)
+Hunyuan3D-1/scripts/
