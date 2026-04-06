@@ -8,11 +8,27 @@
 
 ## 🎁 Demo 示例
 
-项目中已包含 Hunyuan3D-2 生成的 Demo 模型：
+项目中已包含 Hunyuan3D-1 和 Hunyuan3D-2 生成的 Demo 模型：
 
 | 模型 | 大小 | 说明 |
 |------|------|------|
 | [outputs/demo/demo.glb](outputs/demo/demo.glb) | 0.69 MB | 3D 模型 Demo |
+
+### Hunyuan3D-2 示例图片
+
+| example_000 | example_001 | example_002 |
+|:-----------:|:-----------:|:-----------:|
+| ![example_000](Hunyuan3D-2/assets/demo.png) | 卡通兔子 | 3D角色 |
+
+### Hunyuan3D-1 示例图片
+
+| example_000 | example_001 | example_002 | example_003 |
+|:-----------:|:-----------:|:-----------:|:-----------:|
+| ![example_000](Hunyuan3D-1/demos/example_000.png) | ![example_001](Hunyuan3D-1/demos/example_001.png) | ![example_002](Hunyuan3D-1/demos/example_002.png) | ![example_003](Hunyuan3D-1/demos/example_003.png) |
+
+| example_004 | example_005 | example_006 |
+|:-----------:|:-----------:|:-----------:|
+| ![example_004](Hunyuan3D-1/demos/example_004.png) | ![example_005](Hunyuan3D-1/demos/example_005.png) | ![example_006](Hunyuan3D-1/demos/example_006.png) |
 
 **查看方式：**
 1. 下载 `demo.glb` 文件

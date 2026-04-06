@@ -1,48 +1,30 @@
-# ComfyUI (通过submodule引用，不需要在git中)
-# ComfyUI/models 包含大型模型文件
-ComfyUI/models/
-ComfyUI/models/checkpoints/*.safetensors
-ComfyUI/models/diffusion_models/*.safetensors
-ComfyUI/output/
+# 模型文件 (超过100MB，不适合提交到git)
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+
+# 模型目录
+tencent/
+Hunyuan3D-1/weights/
+Hunyuan3D-2/weights/
+
+# 输出文件
+outputs/*.glb
+outputs/*.stl
+outputs/*.obj
+models/ready-to-print/
 
 # Python
 __pycache__/
-*.py[cod]
-*.egg-info/
-.eggs/
-dist/
-build/
-*.whl
+*.pyc
+*.pyo
+.pytest_cache/
 
 # IDE
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# 虚拟环境
-venv/
-.venv/
-env/
-
-# 临时文件
-*.log
-*.tmp
+# 系统文件
 .DS_Store
-
-# 配置文件
-config/printer.json
-
-# 模型文件
-outputs/
-models/ready-to-print/
-*.stl
-*.obj
-*.glb
-
-# 历史记录
-.continuous_*.json
-.3d_print_queue/
-
-# Hunyuan3D 原始目录 (如果有)
-Hunyuan3D-1/scripts/
+Thumbs.db
