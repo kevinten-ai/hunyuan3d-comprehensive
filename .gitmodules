@@ -1,0 +1,3 @@
+[submodule "ComfyUI-Win-Blackwell"]
+	path = ComfyUI-Win-Blackwell
+	url = https://github.com/hiroki-abe-58/ComfyUI-Win-Blackwell.git

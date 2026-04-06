@@ -1,0 +1,10 @@
+# 拓竹打印机自动打印依赖
+
+# 打印机控制
+paho-mqtt>=1.6.1
+
+# HTTP客户端(用于文件上传)
+requests>=2.28.0
+
+# WebSocket支持(可选)
+# websocket-client>=1.6.0
