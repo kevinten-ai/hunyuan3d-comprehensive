@@ -6,6 +6,31 @@
 
 ---
 
+## 🎁 Demo 示例
+
+项目中已包含 Hunyuan3D-2 生成的 Demo 模型：
+
+| 模型 | 大小 | 说明 |
+|------|------|------|
+| [outputs/demo/demo.glb](outputs/demo/demo.glb) | 0.69 MB | 3D 模型 Demo |
+
+**查看方式：**
+1. 下载 `demo.glb` 文件
+2. 用 [3D Viewer](https://3dviewer.net/) 在线查看
+3. 或用 Blender/Blender Addon 导入查看
+
+**生成你自己的模型：**
+```bash
+# 启动 ComfyUI
+cd d:/projects/3d/ComfyUI
+run_blackwell.bat
+
+# 访问 http://localhost:8188
+# 加载 Hunyuan3D 工作流即可生成
+```
+
+---
+
 ## ⚡ 快速开始
 
 ### 方式一：手动打印
