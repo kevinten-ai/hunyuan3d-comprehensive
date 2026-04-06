@@ -496,6 +496,183 @@ d:/projects/3d/ComfyUI/models/checkpoints/
 
 ---
 
+## 🔬 技术架构详解
+
+### PyTorch - 深度学习框架
+
+PyTorch 是 Facebook (Meta) 开发的开源深度学习框架，是当前 AI 领域最流行的框架之一。
+
+| 特性 | 说明 |
+|------|------|
+| **动态计算图** | 调试方便，代码即模型 |
+| **自动微分** | 自动计算梯度 |
+| **GPU 加速** | 充分利用 CUDA |
+| **丰富生态** | torchvision, torchaudio, torchtext |
+
+**版本说明：**
+```bash
+# 查看当前版本
+python -c "import torch; print(torch.__version__)"
+
+# 当前使用 (RTX 5060 Ti 适配版本)
+PyTorch: 2.12.0.dev20260405+cu130 (Nightly)
+```
+
+**与 RTX 5060 Ti 的兼容性：**
+- PyTorch Nightly 版本支持 Blackwell (sm_120) 架构
+- CUDA 12.6 驱动支持 RTX 50 系列
+- 推荐使用 `--disable-xformers` 避免兼容性问题
+
+---
+
+### CUDA - GPU 计算平台
+
+CUDA (Compute Unified Device Architecture) 是 NVIDIA 的并行计算平台，让 GPU 执行通用计算。
+
+| 概念 | 说明 |
+|------|------|
+| **CUDA Core** | GPU 上的计算单元 |
+| **cuDNN** | 深度学习专用库 |
+| **Tensor Core** | 矩阵运算加速 (RTX 50 系列增强) |
+| **Driver** | 显卡驱动，必须 >= 525.60 |
+
+**版本对应：**
+```
+显卡: RTX 5060 Ti (Blackwell)
+架构: sm_120
+驱动: >= 525.60
+CUDA: 12.x
+cuDNN: 8.9+
+PyTorch: 需要 Nightly 版本
+```
+
+**验证 GPU 可用：**
+```python
+import torch
+print(f"CUDA 可用: {torch.cuda.is_available()}")
+print(f"GPU 名称: {torch.cuda.get_device_name(0)}")
+print(f"显存: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+```
+
+---
+
+### ComfyUI - 节点式 AI 生成界面
+
+ComfyUI 是一个基于节点工作流的 AI 图像/模型生成界面，以其灵活性和效率著称。
+
+**为什么选择 ComfyUI？**
+
+| 特点 | ComfyUI | 其他方案 |
+|------|---------|----------|
+| **显存占用** | 最低 1GB | 通常 6-8GB |
+| **速度** | 优化后更快 | 标准速度 |
+| **灵活性** | 节点可自定义 | 固定流程 |
+| **工作流** | 可分享导入 | 不通用 |
+| **RTX 50 支持** | 已有优化版本 | 可能不支持 |
+
+**核心概念：**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      ComfyUI 工作流                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+│  │  Load     │ → │  Prompt  │ → │  Generate │ → │  Save    │
+│  │  Image    │    │  ( CLIP )│    │  ( Model )│    │  Output  │
+│  └──────────┘    └──────────┘    └──────────┘    └──────────┘
+│       ↓              ↓               ↓               ↓
+│   输入图片        文字编码        Hunyuan3D       结果保存
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**与 Hunyuan3D 的关系：**
+- Hunyuan3D-2 已原生支持 ComfyUI
+- 社区有预制的工作流文件可直接使用
+- 支持多视角版本 (MV) 生成更高质量模型
+
+---
+
+### Hunyuan3D - 腾讯混元 3D
+
+Hunyuan3D 是腾讯开源的 3D 生成模型，有两个版本：
+
+#### Hunyuan3D-1 (文字生成)
+
+| 特性 | 说明 |
+|------|------|
+| **输入** | 文字描述 |
+| **输出** | GLB/OBJ 格式 3D 模型 |
+| **速度** | ~10 秒 (Lite 模式) |
+| **质量** | 基础质量，适合快速验证 |
+
+**注意：** 在 Windows 上需要 pytorch3d，当前可能存在兼容性问题。
+
+#### Hunyuan3D-2 (图片生成)
+
+| 特性 | 说明 |
+|------|------|
+| **输入** | 单张或多张图片 |
+| **输出** | 带 PBR 纹理的高质量 3D 模型 |
+| **速度** | ~20-40 秒 |
+| **质量** | 高质量，支持多视角 |
+
+**模型文件：**
+```
+ComfyUI/models/checkpoints/
+├── hunyuan3d-dit-v2.safetensors     # 单视角版本 (~5GB)
+└── hunyuan3d-dit-v2-mv.safetensors  # 多视角版本 (~7GB)
+```
+
+---
+
+### RTX 5060 Ti 与 Blackwell 架构
+
+RTX 5060 Ti 采用 NVIDIA Blackwell 架构，是 RTX 50 系列的代表。
+
+| 规格 | RTX 5060 Ti |
+|------|-------------|
+| **架构** | Blackwell |
+| **代号** | GB206 |
+| **SM 数量** | 36 |
+| **显存** | 16GB GDDR7 |
+| **显存位宽** | 128-bit |
+| **功耗** | 180W |
+
+**Blackwell 特性：**
+- 第五代 Tensor Core：AI 计算更强
+- 第四代 RT Core：光追性能提升
+- GDDR7 显存：更快带宽
+- DLSS 4：AI 超分辨率
+
+**为什么需要 Nightly PyTorch：**
+```
+RTX 40 系列 (Ada)      → sm_89  → 稳定版 PyTorch 支持
+RTX 50 系列 (Blackwell)→ sm_120 → 需要 Nightly 版本
+```
+
+---
+
+### 显存管理
+
+ComfyUI 提供多种显存管理模式：
+
+| 模式 | 显存占用 | 速度 | 适用场景 |
+|------|----------|------|----------|
+| `--highvram` | 全部模型在显存 | 最快 | 显存 >= 12GB |
+| `--normal` | 自动平衡 | 平衡 | 8-12GB 显存 |
+| `--lowvram` | 模型在内存切换 | 较慢 | 显存 < 8GB |
+| `--novram` | 最小显存 | 最慢 | 应急使用 |
+
+**推荐配置 (RTX 5060 Ti 16GB)：**
+```bash
+# 启动命令
+python main.py --disable-xformers --use-pytorch-cross-attention --async-offload
+```
+
+---
+
 ## 📥 安装依赖
 
 ```bash
