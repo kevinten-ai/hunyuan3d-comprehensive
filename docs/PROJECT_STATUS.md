@@ -13,7 +13,7 @@
 |---|---|---|---|
 | Hunyuan3D-1 text-to-3D | CLI/dependency smoke test passed | `Hunyuan3D-1/venv/Scripts/python.exe Hunyuan3D-1/main.py --help`; wrappers prefer the Hunyuan3D-1 venv | Missing `weights/hunyuanDiT`; real generation still needs compatible Torch/RTX 50 validation |
 | Hunyuan3D-2 image-to-3D | Low-step local validation passed | `scripts/hunyuan2_image.py` generated `outputs/validation/hunyuan2_image/validation.glb` | Full-quality generation still needs broader validation |
-| ComfyUI workflow | Quick-test and browser launch passed | Quick test loads `ComfyUI-Hunyuan3DWrapper`; browser at `http://127.0.0.1:8190` rendered the ComfyUI UI | Hunyuan3D workflow JSON execution still pending |
+| ComfyUI workflow | Quick-test and browser launch passed | Quick test loads `ComfyUI-Hunyuan3DWrapper`; browser at `http://127.0.0.1:8190` rendered the ComfyUI UI | Example workflows exist, but referenced model/input assets are missing or path-mismatched |
 | Model conversion | Implemented and tested | `scripts/model_converter.py`; GLB Scene info and GLB-to-STL conversion verified | Real meshes still need print-quality review |
 | Model collection | Implemented and tested | `scripts/model_collector.py`; isolated add/export test | Real model library curation |
 | Bambu printer queue | Implemented queue layer | `bambu_print/print_queue.py`; tests verify default manual start | Real printer validation |
@@ -50,7 +50,7 @@ Current local probe results:
 - Hunyuan3D-1 venv: dependency smoke test now passes (`pip check`; `main.py --help`). The venv uses PyTorch `2.5.1+cu121`; CUDA sees the GPU but warns that sm_120 is unsupported. `weights/hunyuanDiT` is missing, so text-to-3D generation has not completed.
 - Hunyuan3D-1 with system Python: entry import fails because installed `diffusers` expects `Qwen3ForCausalLM`, which the installed `transformers` does not provide.
 - Hunyuan3D-2 local weights: safetensors files exist under `Hunyuan3D-2/tencent/Hunyuan3D-2`. After downloading `hunyuan3d-dit-v2-0/config.yaml`, low-step image-to-3D validation completed and wrote `outputs/validation/hunyuan2_image/validation.glb`.
-- ComfyUI: after installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`, `python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server` exits 0, detects CUDA, loads `ComfyUI-Hunyuan3DWrapper`, and no longer reports `nodes_math.py` or `nodes_glsl.py` import failures. A temporary server on `http://127.0.0.1:8190` rendered the ComfyUI browser UI with `Unsaved Workflow`, `Manager`, queue status, and zoom controls visible. It may still fall back to local mode if ComfyUI-Manager cannot reach comfyregistry.
+- ComfyUI: after installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`, `python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server` exits 0, detects CUDA, loads `ComfyUI-Hunyuan3DWrapper`, and no longer reports `nodes_math.py` or `nodes_glsl.py` import failures. A temporary server on `http://127.0.0.1:8190` rendered the ComfyUI browser UI with `Unsaved Workflow`, `Manager`, queue status, and zoom controls visible. Example workflows exist under `ComfyUI/custom_nodes/ComfyUI-Hunyuan3DWrapper/example_workflows/`, but they reference missing `models/diffusion_models/hy3dgen/...` files, `4x_foolhardy_Remacri.pth`, and sample input images. It may still fall back to local mode if ComfyUI-Manager cannot reach comfyregistry.
 - Printer: `config/printer.json` is absent, so Bambu printer validation has not run.
 
 ## Local Verification Completed

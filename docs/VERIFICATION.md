@@ -31,7 +31,7 @@ These checks require hardware, model weights, or local services that cannot be p
 
 - Hunyuan3D-1 real text-to-3D generation requires model weights and a compatible Python/CUDA environment.
 - Hunyuan3D-2 real image-to-3D generation requires model weights and a compatible Python/CUDA environment.
-- ComfyUI Hunyuan3D workflow validation still requires loading and executing a workflow graph.
+- ComfyUI Hunyuan3D workflow validation still requires aligning the example workflow asset paths, then loading and executing a workflow graph.
 - Bambu Lab validation requires printer IP, access code, serial number, and local network control enabled.
 
 ## Current External Gate Findings
@@ -56,7 +56,7 @@ To restore the required config file in a fresh checkout with the safetensors alr
 ```powershell
 python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='tencent/Hunyuan3D-2', filename='hunyuan3d-dit-v2-0/config.yaml', local_dir='Hunyuan3D-2/tencent/Hunyuan3D-2')"
 ```
-- ComfyUI quick test exits successfully, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`. After installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`, `nodes_glsl.py` and `nodes_math.py` no longer fail to import. A temporary browser validation at `http://127.0.0.1:8190` rendered the ComfyUI UI (`Unsaved Workflow`, `Manager`, queue status, zoom controls). Hunyuan3D workflow execution is still pending.
+- ComfyUI quick test exits successfully, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`. After installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`, `nodes_glsl.py` and `nodes_math.py` no longer fail to import. A temporary browser validation at `http://127.0.0.1:8190` rendered the ComfyUI UI (`Unsaved Workflow`, `Manager`, queue status, zoom controls). Example workflows exist in `ComfyUI-Hunyuan3DWrapper/example_workflows/`, but referenced `models/diffusion_models/hy3dgen/...` files, `4x_foolhardy_Remacri.pth`, and sample input images are missing locally.
 - Printer validation is pending because `config/printer.json` is not present.
 
 ## Release Gate
