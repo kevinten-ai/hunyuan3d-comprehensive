@@ -20,6 +20,7 @@ python scripts/model_converter.py info outputs/validation/hunyuan2_image/validat
 python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb stl validation_hunyuan2
 python scripts/auto_print.py status
 python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server
+python ComfyUI/main.py --listen 127.0.0.1 --port 8190 --disable-auto-launch
 ```
 
 The `auto_print.py status` command requires `config/printer.json`. Without that local secret file, the expected result is a clear message asking the user to configure the printer.
@@ -30,7 +31,7 @@ These checks require hardware, model weights, or local services that cannot be p
 
 - Hunyuan3D-1 real text-to-3D generation requires model weights and a compatible Python/CUDA environment.
 - Hunyuan3D-2 real image-to-3D generation requires model weights and a compatible Python/CUDA environment.
-- ComfyUI validation requires launching the local ComfyUI checkout and loading a Hunyuan3D workflow.
+- ComfyUI Hunyuan3D workflow validation still requires loading and executing a workflow graph.
 - Bambu Lab validation requires printer IP, access code, serial number, and local network control enabled.
 
 ## Current External Gate Findings
@@ -55,7 +56,7 @@ To restore the required config file in a fresh checkout with the safetensors alr
 ```powershell
 python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='tencent/Hunyuan3D-2', filename='hunyuan3d-dit-v2-0/config.yaml', local_dir='Hunyuan3D-2/tencent/Hunyuan3D-2')"
 ```
-- ComfyUI quick test exits successfully, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`. After installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`, `nodes_glsl.py` and `nodes_math.py` no longer fail to import. Live browser workflow execution is still pending.
+- ComfyUI quick test exits successfully, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`. After installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`, `nodes_glsl.py` and `nodes_math.py` no longer fail to import. A temporary browser validation at `http://127.0.0.1:8190` rendered the ComfyUI UI (`Unsaved Workflow`, `Manager`, queue status, zoom controls). Hunyuan3D workflow execution is still pending.
 - Printer validation is pending because `config/printer.json` is not present.
 
 ## Release Gate
