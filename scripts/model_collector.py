@@ -39,19 +39,23 @@ class ModelCollector:
         'custom': '自定义'
     }
 
-    def __init__(self):
+    def __init__(self, models_dir: Optional[Path] = None):
+        self.models_dir = Path(models_dir) if models_dir else MODELS_DIR
+        self.models_raw = self.models_dir / "raw"
+        self.models_ready = self.models_dir / "ready-to-print"
+        self.models_collection = self.models_dir / "collection"
         self._ensure_directories()
 
     def _ensure_directories(self):
         """创建必要的目录结构"""
         dirs = [
-            MODELS_RAW / 'text-to-3d',
-            MODELS_RAW / 'image-to-3d',
-            MODELS_READY,
-            MODELS_COLLECTION,
+            self.models_raw / 'text-to-3d',
+            self.models_raw / 'image-to-3d',
+            self.models_ready,
+            self.models_collection,
         ]
         for cat in self.CATEGORIES.keys():
-            dirs.append(MODELS_COLLECTION / cat)
+            dirs.append(self.models_collection / cat)
 
         for d in dirs:
             d.mkdir(parents=True, exist_ok=True)
@@ -84,7 +88,7 @@ class ModelCollector:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         new_name = f"{category}_{name}_{timestamp}{ext}"
 
-        dest = MODELS_COLLECTION / category / new_name
+        dest = self.models_collection / category / new_name
 
         if copy:
             shutil.copy2(source, dest)
@@ -99,7 +103,7 @@ class ModelCollector:
 
     def _update_index(self, model_path: Path, category: str, name: str):
         """更新模型索引数据库"""
-        index_file = MODELS_COLLECTION / 'index.json'
+        index_file = self.models_collection / 'index.json'
         index = []
 
         if index_file.exists():
@@ -113,7 +117,7 @@ class ModelCollector:
                 hash_md5.update(chunk)
 
         entry = {
-            'path': str(model_path.relative_to(PROJECT_ROOT)),
+            'path': str(model_path.relative_to(self.models_dir)),
             'name': name,
             'category': category,
             'format': model_path.suffix,
@@ -138,7 +142,7 @@ class ModelCollector:
 
     def list_models(self, category: Optional[str] = None) -> List[dict]:
         """列出模型库中的模型"""
-        index_file = MODELS_COLLECTION / 'index.json'
+        index_file = self.models_collection / 'index.json'
         if not index_file.exists():
             return []
 
@@ -174,10 +178,10 @@ class ModelCollector:
             return None
 
         model_info = matches[0]
-        source = PROJECT_ROOT / model_info['path']
+        source = self.models_dir / model_info['path']
 
         if target_dir is None:
-            target_dir = MODELS_READY
+            target_dir = self.models_ready
         else:
             target_dir = Path(target_dir)
 

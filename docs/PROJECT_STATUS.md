@@ -12,10 +12,10 @@
 | Area | Status | Evidence | Remaining gate |
 |---|---|---|---|
 | Hunyuan3D-1 text-to-3D | External engine present | `Hunyuan3D-1/main.py` | CUDA/model weights required for real generation |
-| Hunyuan3D-2 image-to-3D | External engine present | `Hunyuan3D-2/minimal_demo.py`, `Hunyuan3D-2/examples/` | CUDA/model weights required for real generation |
+| Hunyuan3D-2 image-to-3D | Low-step local validation passed | `scripts/hunyuan2_image.py` generated `outputs/validation/hunyuan2_image/validation.glb` | Full-quality generation still needs broader validation |
 | ComfyUI workflow | Local checkout present, not tracked | `ComfyUI/` exists locally; `ComfyUI-Win-Blackwell` is a submodule pointer | Workflow JSON and live launch required |
-| Model conversion | Implemented utility | `scripts/model_converter.py` | Real meshes still need print-quality review |
-| Model collection | Implemented utility | `scripts/model_collector.py` | Sample add/export verification |
+| Model conversion | Implemented and tested | `scripts/model_converter.py`; GLB Scene info and GLB-to-STL conversion verified | Real meshes still need print-quality review |
+| Model collection | Implemented and tested | `scripts/model_collector.py`; isolated add/export test | Real model library curation |
 | Bambu printer queue | Implemented queue layer | `bambu_print/print_queue.py`; tests verify default manual start | Real printer validation |
 | Bambu MQTT commands | Partially implemented | `bambu_print/printer_client.py` | Protocol validation against a real Bambu printer |
 | Hunyuan command bridge | Implemented wrapper | `scripts/hunyuan_quick.py`, `scripts/hunyuan2_image.py`; dry-run verified | Real generation requires weights/hardware |
@@ -49,7 +49,7 @@ Current local probe results:
 - System Python: PyTorch `2.12.0.dev20260405+cu130`; CUDA is available and sees the RTX 5060 Ti.
 - Hunyuan3D-1 venv: PyTorch `2.5.1+cu121`; CUDA sees the GPU but warns that sm_120 is unsupported. The venv also lacks `einops`.
 - Hunyuan3D-1 with system Python: entry import fails because installed `diffusers` expects `Qwen3ForCausalLM`, which the installed `transformers` does not provide.
-- Hunyuan3D-2 local weights: safetensors files exist under `Hunyuan3D-2/tencent/Hunyuan3D-2`, but the local folder lacks `config.yaml`, so the pipeline cannot load from that directory yet.
+- Hunyuan3D-2 local weights: safetensors files exist under `Hunyuan3D-2/tencent/Hunyuan3D-2`. After downloading `hunyuan3d-dit-v2-0/config.yaml`, low-step image-to-3D validation completed and wrote `outputs/validation/hunyuan2_image/validation.glb`.
 - ComfyUI: `python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server` exits 0, detects CUDA and loads `ComfyUI-Hunyuan3DWrapper`, but reports missing `simpleeval` and OpenGL dependencies for some `comfy_extras` nodes.
 - Printer: `config/printer.json` is absent, so Bambu printer validation has not run.
 
@@ -66,6 +66,8 @@ python scripts/continuous_print.py generate --prompt "a rabbit" --no-print --moc
 python scripts/continuous_print.py generate --prompt "a rabbit" --no-print
 python scripts/generate_claude_crabs.py --list
 python scripts/model_converter.py info outputs/demo/demo.stl
+python scripts/model_converter.py info outputs/validation/hunyuan2_image/validation.glb
+python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb stl validation_hunyuan2
 python scripts/auto_print.py status
 python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server
 ```

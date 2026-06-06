@@ -45,6 +45,15 @@ class ModelConverter:
         self.output_dir = Path(output_dir) if output_dir else OUTPUT_DIR
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
+    def _as_mesh(self, loaded):
+        """Normalize trimesh load results so Scene files can be inspected and exported."""
+        if TRIMESH_AVAILABLE and isinstance(loaded, trimesh.Scene):
+            geometries = [geom for geom in loaded.geometry.values() if hasattr(geom, "vertices")]
+            if not geometries:
+                raise ValueError("场景中未找到可用网格")
+            return trimesh.util.concatenate(geometries)
+        return loaded
+
     def convert(self, input_path: str, output_format: str,
                 output_name: Optional[str] = None) -> Path:
         """
@@ -76,7 +85,7 @@ class ModelConverter:
 
         # 加载模型
         print(f"加载模型: {input_path}")
-        mesh = trimesh.load(str(input_path))
+        mesh = self._as_mesh(trimesh.load(str(input_path)))
 
         # 确定输出路径
         if output_name is None:
@@ -107,7 +116,7 @@ class ModelConverter:
             raise RuntimeError("trimesg未安装，无法修复模型")
 
         input_path = Path(input_path)
-        mesh = trimesh.load(str(input_path))
+        mesh = self._as_mesh(trimesh.load(str(input_path)))
 
         # 修复操作
         print("修复中...")
@@ -140,7 +149,7 @@ class ModelConverter:
             raise RuntimeError("trimesg未安装，无法读取模型信息")
 
         input_path = Path(input_path)
-        mesh = trimesh.load(str(input_path))
+        mesh = self._as_mesh(trimesh.load(str(input_path)))
 
         info = {
             'file': input_path.name,

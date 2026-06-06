@@ -14,6 +14,8 @@ python scripts/continuous_print.py generate --prompt "a rabbit" --no-print --moc
 python scripts/continuous_print.py generate --prompt "a rabbit" --no-print
 python scripts/generate_claude_crabs.py --list
 python scripts/model_converter.py info outputs/demo/demo.stl
+python scripts/model_converter.py info outputs/validation/hunyuan2_image/validation.glb
+python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb stl validation_hunyuan2
 python scripts/auto_print.py status
 python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server
 ```
@@ -35,7 +37,17 @@ These checks require hardware, model weights, or local services that cannot be p
 - Hunyuan3D-1 is not yet runnable in the checked environments:
   - system Python fails on a `diffusers`/`transformers` import mismatch;
   - `Hunyuan3D-1/venv` lacks `einops` and uses a Torch build that warns sm_120 is unsupported.
-- Hunyuan3D-2 local safetensors are present, but the local model directory is missing `config.yaml`.
+- Hunyuan3D-2 low-step local validation passed after adding `hunyuan3d-dit-v2-0/config.yaml` to the ignored local model folder. Command used:
+
+```powershell
+python scripts/hunyuan2_image.py --image Hunyuan3D-2/assets/demo.png --output outputs/validation/hunyuan2_image --output-name validation.glb --model-path Hunyuan3D-2/tencent/Hunyuan3D-2 --low-vram --steps 5 --octree-resolution 128 --num-chunks 4000
+```
+
+To restore the required config file in a fresh checkout with the safetensors already present:
+
+```powershell
+python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='tencent/Hunyuan3D-2', filename='hunyuan3d-dit-v2-0/config.yaml', local_dir='Hunyuan3D-2/tencent/Hunyuan3D-2')"
+```
 - ComfyUI quick test exits successfully and detects CUDA, but reports missing optional dependencies for `nodes_glsl.py` and `nodes_math.py`.
 - Printer validation is pending because `config/printer.json` is not present.
 
