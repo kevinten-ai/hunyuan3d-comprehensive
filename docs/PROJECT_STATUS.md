@@ -16,7 +16,7 @@
 | ComfyUI workflow | Quick-test and browser launch passed | Quick test loads `ComfyUI-Hunyuan3DWrapper`; browser at `http://127.0.0.1:8190` rendered the ComfyUI UI; asset checker reports missing workflow assets | Example workflows exist, but referenced model/input assets are missing or path-mismatched |
 | Model conversion | Implemented and tested | `scripts/model_converter.py`; GLB Scene info and GLB-to-STL conversion verified | Real meshes still need print-quality review |
 | Model collection | Implemented and tested | `scripts/model_collector.py`; isolated add/export test | Real model library curation |
-| Bambu printer queue | Implemented queue layer | `bambu_print/print_queue.py`; tests verify default manual start | Real printer validation |
+| Bambu printer queue | Implemented queue layer | `bambu_print/print_queue.py`; tests verify default manual start; `scripts/auto_print.py check-config` validates local config fields without connecting | Real printer validation |
 | Bambu MQTT commands | Partially implemented | `bambu_print/printer_client.py` | Protocol validation against a real Bambu printer |
 | Hunyuan command bridge | Implemented wrapper | `scripts/hunyuan_quick.py`, `scripts/hunyuan2_image.py`; dry-run verified | Real generation requires weights/hardware |
 | Full AI-to-print | Explicit modes | `scripts/ai_to_print.py` uses `--mock` for demo and `--run-generator` for real commands | Real generator and printer validation |
@@ -51,11 +51,11 @@ Current local probe results:
 - Hunyuan3D-1 with system Python: entry import fails because installed `diffusers` expects `Qwen3ForCausalLM`, which the installed `transformers` does not provide.
 - Hunyuan3D-2 local weights: safetensors files exist under `Hunyuan3D-2/tencent/Hunyuan3D-2`. After downloading `hunyuan3d-dit-v2-0/config.yaml`, low-step image-to-3D validation completed and wrote `outputs/validation/hunyuan2_image/validation.glb`.
 - ComfyUI: after installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`, `python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server` exits 0, detects CUDA, loads `ComfyUI-Hunyuan3DWrapper`, and no longer reports `nodes_math.py` or `nodes_glsl.py` import failures. A temporary server on `http://127.0.0.1:8190` rendered the ComfyUI browser UI with `Unsaved Workflow`, `Manager`, queue status, and zoom controls visible. Example workflows exist under `ComfyUI/custom_nodes/ComfyUI-Hunyuan3DWrapper/example_workflows/`; `scripts/check_comfyui_workflow_assets.py --allow-missing` currently reports 7 unique required missing assets and 2 unique optional/downloadable missing assets. It may still fall back to local mode if ComfyUI-Manager cannot reach comfyregistry.
-- Printer: `config/printer.json` is absent, so Bambu printer validation has not run.
+- Printer: `config/printer.json` is absent, so Bambu printer validation has not run. The local preflight command `python scripts/auto_print.py check-config` now catches missing config, template placeholders, and unsupported queue connection methods before any network attempt.
 
 ## Local Verification Completed
 
-These checks passed in the current checkout:
+These checks passed in the current checkout, except where a command is explicitly marked as an expected local gate:
 
 ```powershell
 python -m compileall scripts bambu_print
@@ -71,6 +71,8 @@ python scripts/model_converter.py info outputs/demo/demo.stl
 python scripts/model_converter.py info outputs/validation/hunyuan2_image/validation.glb
 python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb stl validation_hunyuan2
 python scripts/check_comfyui_workflow_assets.py --allow-missing
+# Expected printer config gate until config/printer.json exists:
+python scripts/auto_print.py check-config
 python scripts/auto_print.py status
 python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server
 ```

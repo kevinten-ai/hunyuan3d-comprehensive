@@ -43,6 +43,7 @@ python scripts/auto_print.py config \
     --host 192.168.1.100 \
     --access-code YOUR_CODE \
     --serial SNXXX
+python scripts/auto_print.py check-config
 
 # 添加打印任务
 python scripts/auto_print.py add ./model.stl --name "我的模型"
@@ -182,6 +183,7 @@ printers = discover_printers(timeout=3.0)
 ```bash
 # 配置
 python scripts/auto_print.py config --host IP --access-code CODE --serial SN
+python scripts/auto_print.py check-config
 
 # 发现打印机
 python scripts/auto_print.py discover

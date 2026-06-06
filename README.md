@@ -123,6 +123,7 @@ copy config\printer.json.example config\printer.json
 
 ```powershell
 python scripts/auto_print.py config --host 192.168.1.100 --access-code YOUR_CODE --serial SNXXX
+python scripts/auto_print.py check-config
 ```
 
 常用命令:
@@ -208,6 +209,8 @@ python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
 python scripts/hunyuan_quick.py text "a small robot" --dry-run
 python scripts/check_comfyui_workflow_assets.py --allow-missing
+# Expected to report a missing local secret and exit nonzero until config/printer.json exists:
+python scripts/auto_print.py check-config
 python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 ```
 
