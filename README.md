@@ -160,6 +160,24 @@ python scripts/model_collector.py list
 python scripts/model_collector.py export demo_model
 ```
 
+## 批量创意生成脚本
+
+`scripts/generate_claude_crabs.py` 提供一组 Claude 主题小螃蟹提示词，调用 Hunyuan3D-1 批量生成模型。
+
+查看提示词列表:
+
+```powershell
+python scripts/generate_claude_crabs.py --list
+```
+
+真实批量生成:
+
+```powershell
+python scripts/generate_claude_crabs.py --count 2 --output outputs/claude_crabs_demo
+```
+
+该脚本会调用 `Hunyuan3D-1/main.py`，因此同样需要 Hunyuan3D-1 依赖、权重和可用硬件。
+
 ## ComfyUI
 
 本地存在 `ComfyUI/` 和 `ComfyUI-Win-Blackwell/` 相关目录。`ComfyUI/` 是本地运行资产，已加入 `.gitignore`。
