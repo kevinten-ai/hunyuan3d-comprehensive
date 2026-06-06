@@ -188,12 +188,18 @@ def cmd_add(args):
         print(f"错误: 文件不存在: {filepath}")
         return 1
 
-    job_id = queue.add(
-        str(filepath.absolute()),
-        name=args.name,
-        priority=args.priority
-    )
+    try:
+        job_id = queue.add(
+            str(filepath.absolute()),
+            name=args.name,
+            priority=args.priority
+        )
+    except Exception as e:
+        print(f"错误: 添加任务失败: {e}")
+        return 1
+
     print(f"[OK] 任务已添加 (ID: {job_id})")
+    return 0
 
 
 def cmd_list(args):
@@ -321,8 +327,10 @@ def cmd_remove(args):
 
     if queue.remove(args.job_id):
         print(f"已移除任务: {args.job_id}")
+        return 0
     else:
         print(f"未找到任务: {args.job_id}")
+        return 1
 
 
 def cmd_cancel(args):
@@ -333,8 +341,10 @@ def cmd_cancel(args):
 
     if queue.cancel(args.job_id):
         print(f"已取消任务: {args.job_id}")
+        return 0
     else:
         print(f"未找到任务: {args.job_id}")
+        return 1
 
 
 def cmd_watch(args):
