@@ -63,6 +63,8 @@ python scripts/model_converter.py repair outputs/demo/demo.stl
 
 ```powershell
 python scripts/model_converter.py convert outputs/demo/demo.glb stl demo_from_glb
+python scripts/model_converter.py convert outputs/demo/demo.glb 3mf demo_from_glb
+python scripts/glb_to_3mf.py outputs/demo/demo.glb models/converted/demo_from_glb.3mf
 ```
 
 ## 4. 配置打印机

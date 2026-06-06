@@ -6,5 +6,9 @@ paho-mqtt>=1.6.1
 # HTTP客户端(用于文件上传)
 requests>=2.28.0
 
+# 模型检查、修复和格式转换
+trimesh>=4.0.0
+numpy-stl>=3.1.0
+
 # WebSocket支持(可选)
 # websocket-client>=1.6.0

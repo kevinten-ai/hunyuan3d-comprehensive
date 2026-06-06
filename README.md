@@ -41,7 +41,6 @@ D:/projects/3d/
 
 ```powershell
 pip install -r requirements-print.txt
-pip install trimesh numpy-stl
 ```
 
 Hunyuan3D-2:
@@ -151,6 +150,14 @@ python scripts/model_converter.py info outputs/demo/demo.stl
 
 ```powershell
 python scripts/model_converter.py repair outputs/demo/demo.stl
+```
+
+转换格式:
+
+```powershell
+python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb stl validation_hunyuan2
+python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb 3mf validation_hunyuan2
+python scripts/glb_to_3mf.py outputs/validation/hunyuan2_image/validation.glb models/converted/validation_hunyuan2.3mf
 ```
 
 添加到模型库:

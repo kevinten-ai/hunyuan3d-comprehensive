@@ -27,6 +27,23 @@ class ModelConverterTests(unittest.TestCase):
             self.assertGreater(info["faces"], 0)
             self.assertIsInstance(info["is_watertight"], bool)
 
+    def test_to_3mf_exports_package(self):
+        import trimesh
+
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            source = tmp_path / "box.glb"
+            trimesh.creation.box(extents=(1, 1, 1)).export(str(source))
+
+            output = ModelConverter(output_dir=str(tmp_path / "converted")).to_3mf(
+                str(source),
+                "box_for_bambu",
+            )
+
+            self.assertEqual(output.suffix, ".3mf")
+            self.assertTrue(output.exists())
+            self.assertGreater(output.stat().st_size, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

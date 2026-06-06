@@ -39,7 +39,7 @@ class ModelConverter:
     """3D模型格式转换器"""
 
     SUPPORTED_READ = ['.stl', '.obj', '.ply', '.glb', '.gltf', '.3mf']
-    SUPPORTED_WRITE = ['.stl', '.obj', '.ply']
+    SUPPORTED_WRITE = ['.stl', '.obj', '.ply', '.3mf']
 
     def __init__(self, output_dir: Optional[str] = None):
         self.output_dir = Path(output_dir) if output_dir else OUTPUT_DIR
@@ -68,7 +68,7 @@ class ModelConverter:
             输出文件路径
         """
         if not TRIMESH_AVAILABLE:
-            raise RuntimeError("trimesg未安装，无法进行格式转换")
+            raise RuntimeError("trimesh未安装，无法进行格式转换")
 
         input_path = Path(input_path)
         if not input_path.exists():
@@ -113,7 +113,7 @@ class ModelConverter:
         拓竹打印前建议修复
         """
         if not TRIMESH_AVAILABLE:
-            raise RuntimeError("trimesg未安装，无法修复模型")
+            raise RuntimeError("trimesh未安装，无法修复模型")
 
         input_path = Path(input_path)
         mesh = self._as_mesh(trimesh.load(str(input_path)))
@@ -146,7 +146,7 @@ class ModelConverter:
     def get_info(self, input_path: str) -> dict:
         """获取模型信息"""
         if not TRIMESH_AVAILABLE:
-            raise RuntimeError("trimesg未安装，无法读取模型信息")
+            raise RuntimeError("trimesh未安装，无法读取模型信息")
 
         input_path = Path(input_path)
         mesh = self._as_mesh(trimesh.load(str(input_path)))

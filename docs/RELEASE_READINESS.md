@@ -24,6 +24,9 @@ python scripts/continuous_print.py generate --prompt "a rabbit" --no-print --moc
 python scripts/model_converter.py info outputs/demo/demo.stl
 python scripts/model_converter.py info outputs/validation/hunyuan2_image/validation.glb
 python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb stl validation_hunyuan2
+python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb 3mf validation_hunyuan2
+python scripts/glb_to_3mf.py outputs/validation/hunyuan2_image/validation.glb models/converted/validation_hunyuan2.3mf
+python scripts/model_converter.py info models/converted/validation_hunyuan2.3mf
 # Expected printer config gate until config/printer.json exists:
 python scripts/auto_print.py check-config
 python scripts/auto_print.py status
