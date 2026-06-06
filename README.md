@@ -137,6 +137,8 @@ python scripts/auto_print.py config --host 192.168.1.100 --access-code YOUR_CODE
 python scripts/auto_print.py check-config
 ```
 
+`config` 写入前也会运行同一套本地配置检查；请把示例 IP、访问码和序列号替换为真实打印机信息。
+
 常用命令:
 
 ```powershell
@@ -149,7 +151,7 @@ python scripts/auto_print.py watch
 ```
 
 注意: `add` 只入队，不会默认连接或启动打印机；需要显式运行 `start`。
-`check-config`、`ai_to_print.py` 和 `continuous_print.py` 使用同一套本地配置 preflight。
+`config`、`check-config`、`ai_to_print.py` 和 `continuous_print.py` 使用同一套本地配置 preflight。
 
 ## 模型转换和模型库
 

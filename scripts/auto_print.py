@@ -132,6 +132,10 @@ def cmd_config(args):
         'serial': args.serial,
         'method': args.method
     }
+
+    if not print_config_validation(config, show_success=False):
+        return 1
+
     save_config(config)
     print(f"[OK] 配置已保存到 {CONFIG_FILE}")
     print(f"  主机: {args.host}")
