@@ -43,8 +43,9 @@ These items still require environment or hardware changes before the full end-to
   - low-step local validation passed after downloading `hunyuan3d-dit-v2-0/config.yaml`;
   - full-quality generation settings still need broader runtime and output-quality validation.
 - ComfyUI:
-  - quick test exits 0 and detects CUDA;
-  - missing `simpleeval` and OpenGL dependencies prevent some optional nodes from loading.
+  - quick test exits 0, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`;
+  - `nodes_math.py` and `nodes_glsl.py` import after installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`;
+  - live browser workflow execution is still pending.
 - Bambu Lab printer:
   - `config/printer.json` is absent;
   - MQTT upload/start/pause/resume/stop have not been validated against a real printer.
@@ -53,5 +54,5 @@ These items still require environment or hardware changes before the full end-to
 
 1. Add `Hunyuan3D-1/weights/hunyuanDiT`, then install/update the Hunyuan3D-1 Torch stack for RTX 50-series support and run a real low-step text-to-3D validation.
 2. Keep a complete Hunyuan3D-2 local model snapshot, including `config.yaml`, then validate full-quality generation settings.
-3. Run `python -m pip install -r ComfyUI/requirements.txt` to satisfy missing ComfyUI extras, then launch and test the Hunyuan3D workflow in the browser.
+3. Launch ComfyUI in the browser and test a Hunyuan3D workflow end to end.
 4. Create local `config/printer.json` from `config/printer.json.example`, then validate Bambu queue commands on the real printer.

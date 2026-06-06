@@ -55,7 +55,7 @@ To restore the required config file in a fresh checkout with the safetensors alr
 ```powershell
 python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='tencent/Hunyuan3D-2', filename='hunyuan3d-dit-v2-0/config.yaml', local_dir='Hunyuan3D-2/tencent/Hunyuan3D-2')"
 ```
-- ComfyUI quick test exits successfully and detects CUDA, but reports missing optional dependencies for `nodes_glsl.py` and `nodes_math.py`.
+- ComfyUI quick test exits successfully, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`. After installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`, `nodes_glsl.py` and `nodes_math.py` no longer fail to import. Live browser workflow execution is still pending.
 - Printer validation is pending because `config/printer.json` is not present.
 
 ## Release Gate
