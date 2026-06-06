@@ -36,6 +36,8 @@ __pycache__/
 
 # 日志、运行状态和本地密钥
 *.log
+.env
+.env.*
 config/printer.json
 .3d_print_queue/
 

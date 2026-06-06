@@ -9,6 +9,7 @@ python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
 Hunyuan3D-1\venv\Scripts\python.exe -m pip check
 Hunyuan3D-1\venv\Scripts\python.exe Hunyuan3D-1\main.py --help
+python -c "from scripts import hunyuan2_image; import os; os.environ['HUNYUAN3D2_MODEL_PATH']='custom/model/path'; print(hunyuan2_image.default_model_path())"
 python scripts/hunyuan_quick.py text "a small robot" --dry-run
 python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --dry-run --quality lite
 python scripts/ai_to_print.py text "a rabbit" --no-print --mock
@@ -47,6 +48,8 @@ These checks require hardware, model weights, or local services that cannot be p
   - `Hunyuan3D-1\venv\Scripts\python.exe -m pip check`
   - `Hunyuan3D-1\venv\Scripts\python.exe Hunyuan3D-1\main.py --help`
   - root text wrappers now prefer `HUNYUAN3D1_PYTHON`, then `Hunyuan3D-1/venv/Scripts/python.exe`, then the current interpreter.
+- Optional local environment variables are documented in `config/env.example`; `.env` and `.env.*` are ignored.
+- Hunyuan3D-2 image wrapper defaults to `HUNYUAN3D2_MODEL_PATH` when `--model-path` is not supplied.
 - Hunyuan3D-1 real text-to-3D generation is still gated:
   - `Hunyuan3D-1/weights/hunyuanDiT` is missing locally;
   - the venv Torch build is `2.5.1+cu121` and warns that RTX 5060 Ti sm_120 is unsupported;
@@ -76,4 +79,4 @@ python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
 ```
 
-Do not stage `config/printer.json`, virtual environments, model weights, generated queues, or large generated output files.
+Do not stage `.env`, `config/printer.json`, virtual environments, model weights, generated queues, or large generated output files.

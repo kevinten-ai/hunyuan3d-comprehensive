@@ -8,6 +8,7 @@
   - `--mock` creates a tiny local STL for workflow tests and demos.
   - `--run-generator` is required before scripts call real Hunyuan3D generation.
 - Bambu queue `add` persists jobs without auto-connecting or starting the printer.
+- `config/env.example` documents optional local environment overrides, and `.env` files are ignored.
 - Local tests cover root command construction, mock generation, continuous generation safety, model converter output, Bambu exports, and queue persistence.
 
 ## Verified Locally
@@ -47,6 +48,7 @@ These items still require environment or hardware changes before the full end-to
   - optional baking/render paths still require real PyTorch3D/DUSt3R/libigl support.
 - Hunyuan3D-2 direct pipeline:
   - low-step local validation passed after downloading `hunyuan3d-dit-v2-0/config.yaml`;
+  - `HUNYUAN3D2_MODEL_PATH` can override the default model path for the root wrapper;
   - full-quality generation settings still need broader runtime and output-quality validation.
 - ComfyUI:
   - quick test exits 0, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`;

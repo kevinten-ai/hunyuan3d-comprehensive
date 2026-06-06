@@ -33,6 +33,7 @@ Some local directories are useful runtime assets but should stay out of Git:
 - `Hunyuan3D-1/venv/`
 - `outputs/text_*/`, `outputs/img_*/`, `outputs/continuous/`
 - `models/converted/`
+- `.env`
 - `config/printer.json`
 
 ## Current Priority
@@ -48,6 +49,7 @@ Current local probe results:
 - GPU: NVIDIA GeForce RTX 5060 Ti, driver 591.86, 16 GB VRAM.
 - System Python: PyTorch `2.12.0.dev20260405+cu130`; CUDA is available and sees the RTX 5060 Ti.
 - Hunyuan3D-1 venv: dependency smoke test now passes (`pip check`; `main.py --help`). The venv uses PyTorch `2.5.1+cu121`; CUDA sees the GPU but warns that sm_120 is unsupported. `weights/hunyuanDiT` is missing, so text-to-3D generation has not completed.
+- Local environment overrides are documented in `config/env.example`; `HUNYUAN3D1_PYTHON` controls the Hunyuan3D-1 Python executable and `HUNYUAN3D2_MODEL_PATH` controls the default Hunyuan3D-2 model path.
 - Hunyuan3D-1 with system Python: entry import fails because installed `diffusers` expects `Qwen3ForCausalLM`, which the installed `transformers` does not provide.
 - Hunyuan3D-2 local weights: safetensors files exist under `Hunyuan3D-2/tencent/Hunyuan3D-2`. After downloading `hunyuan3d-dit-v2-0/config.yaml`, low-step image-to-3D validation completed and wrote `outputs/validation/hunyuan2_image/validation.glb`.
 - ComfyUI: after installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`, `python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server` exits 0, detects CUDA, loads `ComfyUI-Hunyuan3DWrapper`, and no longer reports `nodes_math.py` or `nodes_glsl.py` import failures. A temporary server on `http://127.0.0.1:8190` rendered the ComfyUI browser UI with `Unsaved Workflow`, `Manager`, queue status, and zoom controls visible. Example workflows exist under `ComfyUI/custom_nodes/ComfyUI-Hunyuan3DWrapper/example_workflows/`; `scripts/check_comfyui_workflow_assets.py --allow-missing` currently reports 7 unique required missing assets and 2 unique optional/downloadable missing assets. It may still fall back to local mode if ComfyUI-Manager cannot reach comfyregistry.

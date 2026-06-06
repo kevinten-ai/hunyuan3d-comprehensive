@@ -53,6 +53,17 @@ pip install -e .
 
 Hunyuan3D-1 的完整安装请参考 `Hunyuan3D-1/README_zh_cn.md` 和 `Hunyuan3D-1/env_install.sh`。真实生成还需要下载对应模型权重。
 
+可选环境变量模板:
+
+```powershell
+copy config\env.example .env
+```
+
+- `HUNYUAN3D1_PYTHON`: 指定 Hunyuan3D-1 使用的 Python，可覆盖默认的 `Hunyuan3D-1/venv/Scripts/python.exe`。
+- `HUNYUAN3D2_MODEL_PATH`: 指定 Hunyuan3D-2 本地模型快照或 Hugging Face repo；未传 `--model-path` 时由 `scripts/hunyuan2_image.py` 使用。
+
+`.env` 只用于本地运行，不能提交到 Git。
+
 ## 生成模型
 
 ### Dry run 验证命令
@@ -228,6 +239,7 @@ python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 以下内容应保持本地:
 
 - `config/printer.json`
+- `.env`
 - `ComfyUI/`
 - `Hunyuan3D-1/venv/`
 - 模型权重，如 `*.safetensors`、`*.pt`、`*.ckpt`

@@ -14,14 +14,23 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 HUNYUAN2_ROOT = PROJECT_ROOT / "Hunyuan3D-2"
+DEFAULT_MODEL_PATH = "tencent/Hunyuan3D-2"
 
 
-def parse_args():
+def default_model_path() -> str:
+    return os.environ.get("HUNYUAN3D2_MODEL_PATH", DEFAULT_MODEL_PATH)
+
+
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="Generate a GLB model from an image with Hunyuan3D-2")
     parser.add_argument("--image", required=True, help="Input image path")
     parser.add_argument("--output", required=True, help="Output directory")
     parser.add_argument("--output-name", default="model.glb", help="Output GLB file name")
-    parser.add_argument("--model-path", default="tencent/Hunyuan3D-2", help="Model path or Hugging Face repo")
+    parser.add_argument(
+        "--model-path",
+        default=default_model_path(),
+        help="Model path or Hugging Face repo; defaults to HUNYUAN3D2_MODEL_PATH or tencent/Hunyuan3D-2",
+    )
     parser.add_argument("--subfolder", default="hunyuan3d-dit-v2-0", help="Shape model subfolder")
     parser.add_argument("--variant", default="fp16", help="Model variant")
     parser.add_argument("--steps", type=int, default=50, help="Inference steps")
@@ -29,7 +38,7 @@ def parse_args():
     parser.add_argument("--num-chunks", type=int, default=20000, help="Number of chunks")
     parser.add_argument("--seed", type=int, default=12345, help="Torch random seed")
     parser.add_argument("--low-vram", action="store_true", help="Use lower-memory settings")
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def resolve_cli_paths(image_path: str, output_dir: str, model_path: str) -> tuple[Path, Path, str]:
