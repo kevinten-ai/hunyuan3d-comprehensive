@@ -56,6 +56,15 @@ class PrintQueueTests(unittest.TestCase):
             self.assertEqual(queue.status, QueueStatus.IDLE)
             self.assertIsNone(queue._worker_thread)
 
+    def test_status_includes_printer_remaining_time(self):
+        with TemporaryDirectory() as tmp:
+            queue = self.make_queue(Path(tmp) / "queue")
+
+            status = queue.get_status()
+
+            self.assertIn("remaining_time", status["printer"])
+            self.assertEqual(status["printer"]["remaining_time"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

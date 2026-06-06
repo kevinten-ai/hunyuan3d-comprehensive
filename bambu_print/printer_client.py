@@ -53,6 +53,7 @@ class PrinterStatus:
     nozzle_temp: float = 0.0
     model_info: str = ""
     ip_address: str = ""
+    remaining_time: int = 0  # 秒
 
 
 class BambuPrinterClient:
@@ -318,12 +319,20 @@ class BambuPrinterClient:
             print("未连接到打印机")
             return False
 
-        # 构建打印命令
-        command = {
+        command = self._build_start_print_command(filename)
+        return self._send_mqtt_command(command)
+
+    def _build_start_print_command(self, filename: str = None) -> Dict[str, Any]:
+        """Build a Bambu project_file command without sending it."""
+        remote_file = filename
+        if remote_file is None:
+            remote_file = next(iter(self._print_files), "")
+
+        return {
             "print": {
                 "sequence_id": str(int(time.time())),
                 "command": "project_file",
-                "param": filename or list(self._print_files.keys())[0] if self._print_files else "",
+                "param": remote_file,
                 "project_id": None,
                 "profile_id": None,
                 "task_id": None,
@@ -340,8 +349,6 @@ class BambuPrinterClient:
                 "filament_id": "GFL01"
             }
         }
-
-        return self._send_mqtt_command(command)
 
     def _send_mqtt_command(self, command: Dict) -> bool:
         """发送MQTT命令"""

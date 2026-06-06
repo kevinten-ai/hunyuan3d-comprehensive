@@ -8,6 +8,7 @@
   - `--mock` creates a tiny local STL for workflow tests and demos.
   - `--run-generator` is required before scripts call real Hunyuan3D generation.
 - Bambu queue `add` persists jobs without auto-connecting or starting the printer.
+- Bambu client tests cover default status fields, MQTT report parsing, queue status serialization, and local `project_file` command payload construction.
 - `config/env.example` documents optional local environment overrides, and `.env` files are ignored.
 - Local tests cover root command construction, mock generation, continuous generation safety, model converter output, Bambu exports, and queue persistence.
 
@@ -58,6 +59,7 @@ These items still require environment or hardware changes before the full end-to
 - Bambu Lab printer:
   - `config/printer.json` is absent;
   - local config preflight is available through `python scripts/auto_print.py check-config`;
+  - local protocol tests cover status parsing and `project_file` payload construction;
   - MQTT upload/start/pause/resume/stop have not been validated against a real printer.
 
 ## Suggested Next Steps

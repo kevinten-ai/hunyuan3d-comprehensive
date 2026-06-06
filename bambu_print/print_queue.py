@@ -518,7 +518,9 @@ class PrintQueue:
                 'layer': printer_status.layer,
                 'total_layers': printer_status.total_layers,
                 'bed_temp': printer_status.bed_temp,
-                'nozzle_temp': printer_status.nozzle_temp
+                'nozzle_temp': printer_status.nozzle_temp,
+                'remaining_time': printer_status.remaining_time,
+                'ip_address': printer_status.ip_address,
             }
         }
 
