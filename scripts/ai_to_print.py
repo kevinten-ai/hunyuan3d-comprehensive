@@ -57,9 +57,9 @@ def setup_printer():
         return None
 
     config = load_printer_config()
-    if not config:
-        print("错误: 未配置打印机")
-        print("请运行: python scripts/auto_print.py config --host <ip> --access-code <code> --serial <sn>")
+    from scripts.auto_print import print_config_validation
+
+    if not print_config_validation(config, show_success=False):
         return None
 
     try:

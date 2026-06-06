@@ -1,7 +1,9 @@
 import sys
+import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -54,6 +56,30 @@ class AiToPrintTests(unittest.TestCase):
             result = ai_to_print.repair_model(str(source))
 
             self.assertTrue(Path(result).exists())
+
+    def test_setup_printer_rejects_template_config(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config_dir = root / "config"
+            config_dir.mkdir()
+            (config_dir / "printer.json").write_text(
+                json.dumps(
+                    {
+                        "host": "192.168.1.100",
+                        "access_code": "YOUR_ACCESS_CODE",
+                        "serial": "SNXXX",
+                        "method": "mqtt",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with patch.object(ai_to_print, "PROJECT_ROOT", root), \
+                    patch.object(ai_to_print, "PrintQueue") as print_queue:
+                result = ai_to_print.setup_printer()
+
+            self.assertIsNone(result)
+            print_queue.assert_not_called()
 
 
 if __name__ == "__main__":

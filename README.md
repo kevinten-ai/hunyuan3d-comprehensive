@@ -109,6 +109,7 @@ python scripts/ai_to_print.py image Hunyuan3D-2/assets/demo.png --run-generator 
 ```
 
 去掉 `--no-print` 后，脚本会尝试读取本地打印机配置并把模型加入打印队列。
+`ai_to_print.py` 和 `continuous_print.py` 会复用同一套本地配置检查；如果 `config/printer.json` 仍是模板占位值，会跳过自动打印。
 
 ## Bambu Lab 打印机配置
 
@@ -148,6 +149,7 @@ python scripts/auto_print.py watch
 ```
 
 注意: `add` 只入队，不会默认连接或启动打印机；需要显式运行 `start`。
+`check-config`、`ai_to_print.py` 和 `continuous_print.py` 使用同一套本地配置 preflight。
 
 ## 模型转换和模型库
 

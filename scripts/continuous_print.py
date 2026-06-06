@@ -129,7 +129,18 @@ class ContinuousPrinter:
         config_file = PROJECT_ROOT / "config" / "printer.json"
         if config_file.exists():
             with open(config_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                config = json.load(f)
+            from scripts.auto_print import validate_printer_config
+
+            errors, warnings = validate_printer_config(config)
+            for warning in warnings:
+                logger.warning(f"[配置] {warning}")
+            if errors:
+                for error in errors:
+                    logger.warning(f"[配置] {error}")
+                logger.warning("打印机配置检查未通过，将跳过自动打印")
+                return None
+            return config
         return None
 
     def _init_printer(self):
