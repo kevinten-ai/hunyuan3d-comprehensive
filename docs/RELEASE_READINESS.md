@@ -12,8 +12,9 @@
 - `auto_print.py` returns nonzero for local add/remove/cancel failure paths instead of reporting a false-success CLI exit.
 - `auto_print.py config` rejects template printer values before writing local config.
 - AI-to-print and continuous-print entry points reuse the printer config preflight, so template `printer.json` values do not trigger queue creation.
+- `model_collector.py` supports isolated model-library roots through `MODEL_COLLECTOR_MODELS_DIR` and returns nonzero for local CLI input failures.
 - `config/env.example` documents optional local environment overrides, and `.env` files are ignored.
-- Local tests cover root command construction, mock generation, continuous generation safety, model converter output, Bambu exports, and queue persistence.
+- Local tests cover root command construction, mock generation, continuous generation safety, model converter output, model collection CLI gates, Bambu exports, and queue persistence.
 
 ## Verified Locally
 

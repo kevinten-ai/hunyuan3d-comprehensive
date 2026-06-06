@@ -23,6 +23,7 @@ MODELS_DIR = PROJECT_ROOT / "models"
 MODELS_RAW = MODELS_DIR / "raw"
 MODELS_READY = MODELS_DIR / "ready-to-print"
 MODELS_COLLECTION = MODELS_DIR / "collection"
+MODELS_DIR_ENV = "MODEL_COLLECTOR_MODELS_DIR"
 
 class ModelCollector:
     """3D模型收集器"""
@@ -195,7 +196,8 @@ class ModelCollector:
 
 def main():
     """命令行入口"""
-    collector = ModelCollector()
+    models_dir = os.environ.get(MODELS_DIR_ENV)
+    collector = ModelCollector(models_dir=Path(models_dir) if models_dir else None)
 
     if len(sys.argv) < 2:
         print("""
@@ -211,18 +213,23 @@ def main():
   python model_collector.py list toys
   python model_collector.py export dragon
         """)
-        return
+        return 0
 
     cmd = sys.argv[1].lower()
 
     if cmd == 'add':
         if len(sys.argv) < 3:
             print("错误: 请提供文件路径")
-            return
+            return 1
         path = sys.argv[2]
         category = sys.argv[3] if len(sys.argv) > 3 else 'custom'
         name = sys.argv[4] if len(sys.argv) > 4 else None
-        collector.add_model(path, category, name)
+        try:
+            collector.add_model(path, category, name)
+        except (FileNotFoundError, ValueError) as e:
+            print(f"错误: {e}")
+            return 1
+        return 0
 
     elif cmd == 'list':
         category = sys.argv[2] if len(sys.argv) > 2 else None
@@ -233,16 +240,23 @@ def main():
             size_kb = m['size'] / 1024
             print(f"{m['name']:<30} {m['category']:<15} {m['format']:<8} {size_kb:.1f} KB")
         print(f"\n共 {len(models)} 个模型")
+        return 0
 
     elif cmd == 'export':
         if len(sys.argv) < 3:
             print("错误: 请提供模型名称")
-            return
-        collector.export_for_print(sys.argv[2])
+            return 1
+        try:
+            result = collector.export_for_print(sys.argv[2])
+        except ValueError as e:
+            print(f"错误: {e}")
+            return 1
+        return 0 if result is not None else 1
 
     else:
         print(f"未知命令: {cmd}")
+        return 1
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

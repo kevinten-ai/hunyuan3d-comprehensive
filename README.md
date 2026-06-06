@@ -61,6 +61,7 @@ copy config\env.example .env
 
 - `HUNYUAN3D1_PYTHON`: 指定 Hunyuan3D-1 使用的 Python，可覆盖默认的 `Hunyuan3D-1/venv/Scripts/python.exe`。
 - `HUNYUAN3D2_MODEL_PATH`: 指定 Hunyuan3D-2 本地模型快照或 Hugging Face repo；未传 `--model-path` 时由 `scripts/hunyuan2_image.py` 使用。
+- `MODEL_COLLECTOR_MODELS_DIR`: 指定 `scripts/model_collector.py` 使用的模型库根目录，便于把演示或测试集合放到仓库外。
 
 `.env` 只用于本地运行，不能提交到 Git。
 
@@ -182,6 +183,8 @@ python scripts/model_collector.py add outputs/demo/demo.stl demo demo_model
 python scripts/model_collector.py list
 python scripts/model_collector.py export demo_model
 ```
+
+`MODEL_COLLECTOR_MODELS_DIR` 可覆盖默认的 `models/` 目录；CLI 对未知命令、缺少参数和不存在的导出目标会返回非 0。
 
 ## 批量创意生成脚本
 

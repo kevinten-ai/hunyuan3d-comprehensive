@@ -15,7 +15,7 @@
 | Hunyuan3D-2 image-to-3D | Low-step local validation passed | `scripts/hunyuan2_image.py` generated `outputs/validation/hunyuan2_image/validation.glb` | Full-quality generation still needs broader validation |
 | ComfyUI workflow | Quick-test and browser launch passed | Quick test loads `ComfyUI-Hunyuan3DWrapper`; browser at `http://127.0.0.1:8190` rendered the ComfyUI UI; asset checker reports missing workflow assets | Example workflows exist, but referenced model/input assets are missing or path-mismatched |
 | Model conversion | Implemented and tested | `scripts/model_converter.py`, `scripts/glb_to_3mf.py`; GLB Scene info plus GLB-to-STL and GLB-to-3MF conversion verified | Real meshes still need print-quality review |
-| Model collection | Implemented and tested | `scripts/model_collector.py`; isolated add/export test | Real model library curation |
+| Model collection | Implemented and tested | `scripts/model_collector.py`; isolated add/export test, CLI failure return-code tests, and `MODEL_COLLECTOR_MODELS_DIR` override | Real model library curation |
 | Bambu printer queue | Implemented queue layer | `bambu_print/print_queue.py`; tests verify default manual start, status serialization, and CLI failure return codes; `scripts/auto_print.py config/check-config` validates local config fields without connecting | Real printer validation |
 | Bambu MQTT commands | Partially implemented | `bambu_print/printer_client.py`; local tests verify status parsing and `project_file` command payload construction | Protocol validation against a real Bambu printer |
 | Hunyuan command bridge | Implemented wrapper | `scripts/hunyuan_quick.py`, `scripts/hunyuan2_image.py`; dry-run verified | Real generation requires weights/hardware |

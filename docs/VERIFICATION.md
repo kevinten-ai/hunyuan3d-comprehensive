@@ -7,6 +7,7 @@ Run these from the repository root:
 ```powershell
 python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
+python -m unittest tests.test_model_collector_cli tests.test_model_collector -v
 Hunyuan3D-1\venv\Scripts\python.exe -m pip check
 Hunyuan3D-1\venv\Scripts\python.exe Hunyuan3D-1\main.py --help
 python -c "from scripts import hunyuan2_image; import os; os.environ['HUNYUAN3D2_MODEL_PATH']='custom/model/path'; print(hunyuan2_image.default_model_path())"
@@ -31,6 +32,8 @@ python ComfyUI/main.py --listen 127.0.0.1 --port 8190 --disable-auto-launch
 ```
 
 The `auto_print.py config` and `auto_print.py check-config` commands validate the local JSON fields without connecting to the printer. Without `config/printer.json`, the expected result is a clear message asking the user to configure the printer. The `status`, `start`, and `watch` commands also require a valid local config before they create a queue client. `add`, `remove`, and `cancel` return nonzero on local failure paths. `scripts/ai_to_print.py` and `scripts/continuous_print.py` reuse the same validation before automatic printing.
+
+`scripts/model_collector.py` supports `MODEL_COLLECTOR_MODELS_DIR` for isolated local model-library roots. The CLI returns nonzero for unknown commands, missing required arguments, and missing export targets.
 
 ## External Checks
 
