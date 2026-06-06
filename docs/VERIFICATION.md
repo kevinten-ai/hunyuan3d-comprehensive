@@ -7,6 +7,8 @@ Run these from the repository root:
 ```powershell
 python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
+Hunyuan3D-1\venv\Scripts\python.exe -m pip check
+Hunyuan3D-1\venv\Scripts\python.exe Hunyuan3D-1\main.py --help
 python scripts/hunyuan_quick.py text "a small robot" --dry-run
 python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --dry-run --quality lite
 python scripts/ai_to_print.py text "a rabbit" --no-print --mock
@@ -34,9 +36,14 @@ These checks require hardware, model weights, or local services that cannot be p
 ## Current External Gate Findings
 
 - RTX 5060 Ti is present and system Python has CUDA-enabled PyTorch nightly.
-- Hunyuan3D-1 is not yet runnable in the checked environments:
-  - system Python fails on a `diffusers`/`transformers` import mismatch;
-  - `Hunyuan3D-1/venv` lacks `einops` and uses a Torch build that warns sm_120 is unsupported.
+- Hunyuan3D-1 dependency/CLI smoke validation now passes in `Hunyuan3D-1/venv`:
+  - `Hunyuan3D-1\venv\Scripts\python.exe -m pip check`
+  - `Hunyuan3D-1\venv\Scripts\python.exe Hunyuan3D-1\main.py --help`
+  - root text wrappers now prefer `HUNYUAN3D1_PYTHON`, then `Hunyuan3D-1/venv/Scripts/python.exe`, then the current interpreter.
+- Hunyuan3D-1 real text-to-3D generation is still gated:
+  - `Hunyuan3D-1/weights/hunyuanDiT` is missing locally;
+  - the venv Torch build is `2.5.1+cu121` and warns that RTX 5060 Ti sm_120 is unsupported;
+  - baking/render extras still need real PyTorch3D/DUSt3R/libigl support if `--do_bake` or `--do_render` is required.
 - Hunyuan3D-2 low-step local validation passed after adding `hunyuan3d-dit-v2-0/config.yaml` to the ignored local model folder. Command used:
 
 ```powershell

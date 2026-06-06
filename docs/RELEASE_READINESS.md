@@ -15,6 +15,9 @@
 ```powershell
 python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
+Hunyuan3D-1\venv\Scripts\python.exe -m pip check
+Hunyuan3D-1\venv\Scripts\python.exe Hunyuan3D-1\main.py --help
+python scripts/hunyuan_quick.py text "a small robot" --dry-run --lite
 python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --dry-run --quality lite
 python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 python scripts/continuous_print.py generate --prompt "a rabbit" --no-print --mock
@@ -31,9 +34,11 @@ python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-se
 These items still require environment or hardware changes before the full end-to-end system can be called complete:
 
 - Hunyuan3D-1 environment:
-  - system Python has a `diffusers`/`transformers` mismatch;
-  - `Hunyuan3D-1/venv` lacks `einops`;
-  - `Hunyuan3D-1/venv` Torch does not support RTX 5060 Ti sm_120.
+  - `Hunyuan3D-1/venv` now passes `pip check` and `main.py --help`;
+  - root Hunyuan3D-1 wrappers prefer the project venv or `HUNYUAN3D1_PYTHON`;
+  - `weights/hunyuanDiT` is missing locally, so text-to-3D generation has not completed;
+  - `Hunyuan3D-1/venv` Torch still needs RTX 5060 Ti sm_120-compatible validation;
+  - optional baking/render paths still require real PyTorch3D/DUSt3R/libigl support.
 - Hunyuan3D-2 direct pipeline:
   - low-step local validation passed after downloading `hunyuan3d-dit-v2-0/config.yaml`;
   - full-quality generation settings still need broader runtime and output-quality validation.
@@ -46,7 +51,7 @@ These items still require environment or hardware changes before the full end-to
 
 ## Suggested Next Steps
 
-1. Install/update the Hunyuan3D-1 environment for RTX 50-series support or run Hunyuan3D-1 through the system PyTorch nightly after resolving the `diffusers`/`transformers` mismatch.
+1. Add `Hunyuan3D-1/weights/hunyuanDiT`, then install/update the Hunyuan3D-1 Torch stack for RTX 50-series support and run a real low-step text-to-3D validation.
 2. Keep a complete Hunyuan3D-2 local model snapshot, including `config.yaml`, then validate full-quality generation settings.
 3. Run `python -m pip install -r ComfyUI/requirements.txt` to satisfy missing ComfyUI extras, then launch and test the Hunyuan3D workflow in the browser.
 4. Create local `config/printer.json` from `config/printer.json.example`, then validate Bambu queue commands on the real printer.

@@ -22,6 +22,18 @@ def _default_output(prefix: str) -> str:
     return str(PROJECT_ROOT / "outputs" / f'{prefix}_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
 
 
+def hunyuan1_python_executable() -> str:
+    configured = os.environ.get("HUNYUAN3D1_PYTHON")
+    if configured:
+        return configured
+
+    venv_python = PROJECT_ROOT / "Hunyuan3D-1" / "venv" / "Scripts" / "python.exe"
+    if venv_python.exists():
+        return str(venv_python)
+
+    return sys.executable
+
+
 def _run_command(command: list[str], cwd: Optional[Path], dry_run: bool, mode: str) -> dict:
     result = {
         "mode": mode,
@@ -45,7 +57,7 @@ def _run_command(command: list[str], cwd: Optional[Path], dry_run: bool, mode: s
 def build_text_command(prompt: str, output_dir: str, lite: bool = False, save_memory: bool = False) -> list[str]:
     """Build a real Hunyuan3D-1 text-to-3D command."""
     command = [
-        sys.executable,
+        hunyuan1_python_executable(),
         str(PROJECT_ROOT / "Hunyuan3D-1" / "main.py"),
         "--text_prompt",
         prompt,

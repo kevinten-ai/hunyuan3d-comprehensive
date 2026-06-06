@@ -34,17 +34,17 @@ warnings.simplefilter('ignore', category=FutureWarning)
 warnings.simplefilter('ignore', category=DeprecationWarning)
 
 from infer import Text2Image, Removebg, Image2Views, Views2Mesh, GifRenderer
-from third_party.mesh_baker import MeshBaker
 from third_party.check import check_bake_available
 
-try:
-    from third_party.mesh_baker import MeshBaker
-    assert check_bake_available()
-    BAKE_AVAILEBLE = True
-except Exception as err:
-    print(err)
-    print("import baking related fail, run without baking")
-    BAKE_AVAILEBLE = False
+MeshBaker = None
+BAKE_AVAILEBLE = check_bake_available(verbose=False)
+if BAKE_AVAILEBLE:
+    try:
+        from third_party.mesh_baker import MeshBaker
+    except Exception as err:
+        print(err)
+        print("import baking related fail, run without baking")
+        BAKE_AVAILEBLE = False
 
 def get_args():
     parser = argparse.ArgumentParser()

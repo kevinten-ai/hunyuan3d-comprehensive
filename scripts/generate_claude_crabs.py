@@ -15,6 +15,8 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / 'Hunyuan3D-1'))
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from scripts.hunyuan_quick import hunyuan1_python_executable
+
 # Claude 小螃蟹创意提示词集合
 CLAUDE_CRAB_PROMPTS = [
     {
@@ -63,7 +65,7 @@ CLAUDE_CRAB_PROMPTS = [
 def build_crab_command(prompt: str, output_dir: str, lite: bool = True, save_memory: bool = True) -> list[str]:
     """Build the Hunyuan3D-1 command for one crab prompt."""
     cmd = [
-        sys.executable,
+        hunyuan1_python_executable(),
         str(PROJECT_ROOT / 'Hunyuan3D-1' / 'main.py'),
         '--text_prompt', prompt,
         '--save_folder', output_dir,

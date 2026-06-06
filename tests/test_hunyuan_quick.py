@@ -1,6 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -9,15 +10,23 @@ from scripts import hunyuan_quick
 
 class HunyuanQuickTests(unittest.TestCase):
     def test_build_text_command_targets_hunyuan1_main(self):
-        command = hunyuan_quick.build_text_command("a small robot", "out/text", lite=True)
+        with patch.dict(hunyuan_quick.os.environ, {"HUNYUAN3D1_PYTHON": "custom-python"}):
+            command = hunyuan_quick.build_text_command("a small robot", "out/text", lite=True)
 
-        self.assertEqual(command[0], sys.executable)
+        self.assertEqual(command[0], "custom-python")
         self.assertIn(str(Path("Hunyuan3D-1") / "main.py"), command[1])
         self.assertIn("--text_prompt", command)
         self.assertIn("a small robot", command)
         self.assertIn("--save_folder", command)
         self.assertIn("out/text", command)
         self.assertIn("--use_lite", command)
+
+    def test_hunyuan1_python_prefers_project_venv_when_present(self):
+        command = hunyuan_quick.build_text_command("a small robot", "out/text")
+        venv_python = hunyuan_quick.PROJECT_ROOT / "Hunyuan3D-1" / "venv" / "Scripts" / "python.exe"
+        expected = str(venv_python) if venv_python.exists() else sys.executable
+
+        self.assertEqual(command[0], expected)
 
     def test_build_image_command_targets_project_hunyuan2_cli(self):
         command = hunyuan_quick.build_image_command("input.png", "out/image", quality="lite")

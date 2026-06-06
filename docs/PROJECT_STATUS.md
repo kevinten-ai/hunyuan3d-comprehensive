@@ -11,7 +11,7 @@
 
 | Area | Status | Evidence | Remaining gate |
 |---|---|---|---|
-| Hunyuan3D-1 text-to-3D | External engine present | `Hunyuan3D-1/main.py` | CUDA/model weights required for real generation |
+| Hunyuan3D-1 text-to-3D | CLI/dependency smoke test passed | `Hunyuan3D-1/venv/Scripts/python.exe Hunyuan3D-1/main.py --help`; wrappers prefer the Hunyuan3D-1 venv | Missing `weights/hunyuanDiT`; real generation still needs compatible Torch/RTX 50 validation |
 | Hunyuan3D-2 image-to-3D | Low-step local validation passed | `scripts/hunyuan2_image.py` generated `outputs/validation/hunyuan2_image/validation.glb` | Full-quality generation still needs broader validation |
 | ComfyUI workflow | Local checkout present, not tracked | `ComfyUI/` exists locally; `ComfyUI-Win-Blackwell` is a submodule pointer | Workflow JSON and live launch required |
 | Model conversion | Implemented and tested | `scripts/model_converter.py`; GLB Scene info and GLB-to-STL conversion verified | Real meshes still need print-quality review |
@@ -47,7 +47,7 @@ Current local probe results:
 
 - GPU: NVIDIA GeForce RTX 5060 Ti, driver 591.86, 16 GB VRAM.
 - System Python: PyTorch `2.12.0.dev20260405+cu130`; CUDA is available and sees the RTX 5060 Ti.
-- Hunyuan3D-1 venv: PyTorch `2.5.1+cu121`; CUDA sees the GPU but warns that sm_120 is unsupported. The venv also lacks `einops`.
+- Hunyuan3D-1 venv: dependency smoke test now passes (`pip check`; `main.py --help`). The venv uses PyTorch `2.5.1+cu121`; CUDA sees the GPU but warns that sm_120 is unsupported. `weights/hunyuanDiT` is missing, so text-to-3D generation has not completed.
 - Hunyuan3D-1 with system Python: entry import fails because installed `diffusers` expects `Qwen3ForCausalLM`, which the installed `transformers` does not provide.
 - Hunyuan3D-2 local weights: safetensors files exist under `Hunyuan3D-2/tencent/Hunyuan3D-2`. After downloading `hunyuan3d-dit-v2-0/config.yaml`, low-step image-to-3D validation completed and wrote `outputs/validation/hunyuan2_image/validation.glb`.
 - ComfyUI: `python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server` exits 0, detects CUDA and loads `ComfyUI-Hunyuan3DWrapper`, but reports missing `simpleeval` and OpenGL dependencies for some `comfy_extras` nodes.
@@ -60,6 +60,8 @@ These checks passed in the current checkout:
 ```powershell
 python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
+Hunyuan3D-1\venv\Scripts\python.exe -m pip check
+Hunyuan3D-1\venv\Scripts\python.exe Hunyuan3D-1\main.py --help
 python scripts/hunyuan_quick.py text "a small robot" --dry-run --lite
 python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 python scripts/continuous_print.py generate --prompt "a rabbit" --no-print --mock
