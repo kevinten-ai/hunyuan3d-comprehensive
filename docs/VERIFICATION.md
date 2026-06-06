@@ -19,6 +19,7 @@ python scripts/model_converter.py info outputs/demo/demo.stl
 python scripts/model_converter.py info outputs/validation/hunyuan2_image/validation.glb
 python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb stl validation_hunyuan2
 python scripts/auto_print.py status
+python scripts/check_comfyui_workflow_assets.py --allow-missing
 python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server
 python ComfyUI/main.py --listen 127.0.0.1 --port 8190 --disable-auto-launch
 ```
@@ -56,7 +57,7 @@ To restore the required config file in a fresh checkout with the safetensors alr
 ```powershell
 python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='tencent/Hunyuan3D-2', filename='hunyuan3d-dit-v2-0/config.yaml', local_dir='Hunyuan3D-2/tencent/Hunyuan3D-2')"
 ```
-- ComfyUI quick test exits successfully, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`. After installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`, `nodes_glsl.py` and `nodes_math.py` no longer fail to import. A temporary browser validation at `http://127.0.0.1:8190` rendered the ComfyUI UI (`Unsaved Workflow`, `Manager`, queue status, zoom controls). Example workflows exist in `ComfyUI-Hunyuan3DWrapper/example_workflows/`, but referenced `models/diffusion_models/hy3dgen/...` files, `4x_foolhardy_Remacri.pth`, and sample input images are missing locally.
+- ComfyUI quick test exits successfully, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`. After installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`, `nodes_glsl.py` and `nodes_math.py` no longer fail to import. A temporary browser validation at `http://127.0.0.1:8190` rendered the ComfyUI UI (`Unsaved Workflow`, `Manager`, queue status, zoom controls). `python scripts/check_comfyui_workflow_assets.py --allow-missing` verifies the example workflow gates: 13 asset references checked, 7 unique required assets missing, and 2 unique optional/downloadable assets missing in the current local checkout.
 - Printer validation is pending because `config/printer.json` is not present.
 
 ## Release Gate

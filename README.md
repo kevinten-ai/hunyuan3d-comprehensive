@@ -191,6 +191,14 @@ python main.py --disable-xformers --use-pytorch-cross-attention
 
 启动后访问 `http://localhost:8188`，加载 Hunyuan3D 工作流。该部分需要单独验证工作流 JSON、模型位置和显卡环境。
 
+可先检查 Hunyuan3DWrapper 示例工作流引用的本地模型和输入图是否齐全:
+
+```powershell
+python scripts/check_comfyui_workflow_assets.py --allow-missing
+```
+
+若命令报告缺失 `models/diffusion_models/hy3dgen/...`、`models/upscale_models/...` 或 `input/...`，需要先把对应资产放到 ComfyUI 目录中，再执行工作流。
+
 ## 验证
 
 本地静态/轻量验证:
@@ -199,6 +207,7 @@ python main.py --disable-xformers --use-pytorch-cross-attention
 python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
 python scripts/hunyuan_quick.py text "a small robot" --dry-run
+python scripts/check_comfyui_workflow_assets.py --allow-missing
 python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 ```
 

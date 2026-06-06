@@ -26,6 +26,7 @@ python scripts/model_converter.py info outputs/validation/hunyuan2_image/validat
 python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb stl validation_hunyuan2
 python scripts/auto_print.py status
 python scripts/generate_claude_crabs.py --list
+python scripts/check_comfyui_workflow_assets.py --allow-missing
 python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server
 ```
 
@@ -46,7 +47,7 @@ These items still require environment or hardware changes before the full end-to
   - quick test exits 0, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`;
   - `nodes_math.py` and `nodes_glsl.py` import after installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`;
   - browser launch at `http://127.0.0.1:8190` rendered the ComfyUI UI;
-  - example workflows exist, but referenced `models/diffusion_models/hy3dgen/...` files, `4x_foolhardy_Remacri.pth`, and sample input images are missing locally.
+  - `scripts/check_comfyui_workflow_assets.py` reports 7 unique required missing assets and 2 unique optional/downloadable missing assets for the local example workflows.
 - Bambu Lab printer:
   - `config/printer.json` is absent;
   - MQTT upload/start/pause/resume/stop have not been validated against a real printer.
