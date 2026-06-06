@@ -94,7 +94,7 @@ class ModelCollector:
         # 更新模型索引
         self._update_index(dest, category, name)
 
-        print(f"✓ 模型已添加: {dest}")
+        print(f"[OK] 模型已添加: {dest}")
         return dest
 
     def _update_index(self, model_path: Path, category: str, name: str):
@@ -185,7 +185,7 @@ class ModelCollector:
         dest = target_dir / source.name
 
         shutil.copy2(source, dest)
-        print(f"✓ 已导出到: {dest}")
+        print(f"[OK] 已导出到: {dest}")
         return dest
 
 

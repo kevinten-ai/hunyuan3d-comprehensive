@@ -74,7 +74,7 @@ def cmd_config(args):
         'method': args.method
     }
     save_config(config)
-    print(f"✓ 配置已保存到 {CONFIG_FILE}")
+    print(f"[OK] 配置已保存到 {CONFIG_FILE}")
     print(f"  主机: {args.host}")
     print(f"  序列号: {args.serial}")
     print(f"  连接方式: {args.method}")
@@ -126,7 +126,7 @@ def cmd_add(args):
         name=args.name,
         priority=args.priority
     )
-    print(f"✓ 任务已添加 (ID: {job_id})")
+    print(f"[OK] 任务已添加 (ID: {job_id})")
 
 
 def cmd_list(args):

@@ -78,7 +78,9 @@ class ContinuousPrinter:
         access_code: str = None,
         serial: str = None,
         output_dir: str = None,
-        auto_start: bool = True
+        auto_start: bool = True,
+        mock: bool = False,
+        run_generator: bool = False
     ):
         """
         初始化持续打印机
@@ -105,6 +107,8 @@ class ContinuousPrinter:
         # 打印队列
         self.print_queue = None
         self.auto_start = auto_start
+        self.mock = mock
+        self.run_generator = run_generator
         self.is_running = False
 
         # 生成状态
@@ -141,7 +145,7 @@ class ContinuousPrinter:
                 access_code=self.printer_config['access_code'],
                 serial=self.printer_config['serial']
             )
-            logger.info(f"✓ 已连接打印机: {self.printer_config['host']}")
+            logger.info(f"[OK] 已连接打印机: {self.printer_config['host']}")
         except Exception as e:
             logger.error(f"打印机连接失败: {e}")
             self.print_queue = None
@@ -184,42 +188,30 @@ class ContinuousPrinter:
         output.mkdir(parents=True, exist_ok=True)
 
         try:
-            # 使用Hunyuan3D-1生成
-            sys.path.insert(0, str(PROJECT_ROOT / "Hunyuan3D-1"))
-            from main import get_args
+            if self.mock:
+                from scripts.ai_to_print import _write_mock_stl
 
-            # 构造参数
-            args = type('Args', (), {
-                'text_prompt': prompt,
-                'image_prompt': '',
-                'save_folder': str(output),
-                'use_lite': False,
-                'save_memory': False,
-                'device': 'cuda:0' if os.path.exists('/dev/nvidia0') else 'cpu',
-                'max_faces_num': 120000,
-                'do_texture_mapping': True,
-                'do_render': False,
-                'do_bake': False
-            })()
+                model_file = _write_mock_stl(str(output))
+                logger.info(f"[生成] Mock 模式已创建: {model_file}")
+                self.generation_stats['success'] += 1
+                return str(model_file)
 
-            # 执行生成 (简化版，实际使用需导入真实模块)
-            # 由于Hunyuan3D-1 main.py需要完整执行，这里用模拟
-            logger.info(f"[生成] 正在生成模型，请稍候...")
-            time.sleep(2)  # 模拟生成时间
+            if not self.run_generator:
+                logger.warning("[生成] 未执行真实文字生成。启用 --run-generator 或 --mock。")
+                return None
 
-            # 查找生成的模型文件
+            from scripts import hunyuan_quick
+
+            hunyuan_quick.text_to_3d(prompt, output_dir=str(output), lite=True, dry_run=False)
             model_file = self._find_model_file(output)
             if model_file:
                 logger.info(f"[生成] 完成: {model_file}")
                 self.generation_stats['success'] += 1
                 return str(model_file)
 
-            # 模拟生成一个文件用于测试
-            model_file = output / "mesh.obj"
-            model_file.write_text("# Test model\n")
-            logger.warning("[生成] 使用模拟模型文件")
-            self.generation_stats['success'] += 1
-            return str(model_file)
+            logger.error(f"[生成] 输出目录中未找到模型文件: {output}")
+            self.generation_stats['failed'] += 1
+            return None
 
         except Exception as e:
             logger.error(f"[生成] 失败: {e}")
@@ -245,33 +237,30 @@ class ContinuousPrinter:
         output.mkdir(parents=True, exist_ok=True)
 
         try:
-            sys.path.insert(0, str(PROJECT_ROOT / "Hunyuan3D-2"))
-            from hy3dgen.rembg import BackgroundRemover
-            from hy3dgen.shapegen import Hunyuan3DDiTFlowMatchingPipeline
-            from hy3dgen.texgen import Hunyuan3DPaintPipeline
-            from PIL import Image
+            if self.mock:
+                from scripts.ai_to_print import _write_mock_stl
 
-            # 加载模型
-            model_path = 'tencent/Hunyuan3D-2'
-            pipeline_shapegen = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(model_path)
-            pipeline_texgen = Hunyuan3DPaintPipeline.from_pretrained(model_path)
+                model_file = _write_mock_stl(str(output))
+                logger.info(f"[生成] Mock 模式已创建: {model_file}")
+                self.generation_stats['success'] += 1
+                return str(model_file)
 
-            # 处理图片
-            image = Image.open(image_path).convert("RGBA")
-            if image.mode == 'RGB':
-                rembg = BackgroundRemover()
-                image = rembg(image)
+            if not self.run_generator:
+                logger.warning("[生成] 未执行真实图片生成。启用 --run-generator 或 --mock。")
+                return None
 
-            # 生成
-            mesh = pipeline_shapegen(image=image)[0]
-            mesh = pipeline_texgen(mesh, image=image)
+            from scripts import hunyuan_quick
 
-            output_file = output / "model.glb"
-            mesh.export(str(output_file))
+            hunyuan_quick.image_to_3d(image_path, output_dir=str(output), quality=quality, dry_run=False)
+            model_file = self._find_model_file(output)
+            if model_file:
+                logger.info(f"[生成] 完成: {model_file}")
+                self.generation_stats['success'] += 1
+                return str(model_file)
 
-            logger.info(f"[生成] 完成: {output_file}")
-            self.generation_stats['success'] += 1
-            return str(output_file)
+            logger.error(f"[生成] 输出目录中未找到模型文件: {output}")
+            self.generation_stats['failed'] += 1
+            return None
 
         except Exception as e:
             logger.error(f"[生成] 失败: {e}")
@@ -589,25 +578,34 @@ def main():
     gen_parser.add_argument('--prompt', '-p', help='文字提示词')
     gen_parser.add_argument('--image', '-i', help='图片路径')
     gen_parser.add_argument('--no-print', action='store_true', help='不打印')
+    gen_parser.add_argument('--mock', action='store_true', help='演示模式：创建最小 STL，不调用模型')
+    gen_parser.add_argument('--run-generator', action='store_true', help='调用真实 Hunyuan3D 生成命令')
 
     # watch - 监控文件夹
     watch_parser = subparsers.add_parser('watch', help='监控文件夹模式')
     watch_parser.add_argument('--folder', '-f', default='./watch_folder', help='监控文件夹')
     watch_parser.add_argument('--extensions', nargs='+', help='监控的文件扩展名')
     watch_parser.add_argument('--no-auto-print', action='store_true', help='不自动打印')
+    watch_parser.add_argument('--mock', action='store_true', help='演示模式：创建最小 STL，不调用模型')
+    watch_parser.add_argument('--run-generator', action='store_true', help='调用真实 Hunyuan3D 生成命令')
 
     # prompts - 提示词列表
     prompts_parser = subparsers.add_parser('prompts', help='提示词列表模式')
     prompts_parser.add_argument('--file', '-f', required=True, help='提示词文件')
     prompts_parser.add_argument('--delay', '-d', type=float, default=60, help='间隔时间(秒)')
+    prompts_parser.add_argument('--mock', action='store_true', help='演示模式：创建最小 STL，不调用模型')
+    prompts_parser.add_argument('--run-generator', action='store_true', help='调用真实 Hunyuan3D 生成命令')
 
     # status - 状态
     subparsers.add_parser('status', help='查看状态')
 
     args = parser.parse_args()
 
+    mock = getattr(args, 'mock', False)
+    run_generator = getattr(args, 'run_generator', False)
+
     # 创建管理器
-    printer = ContinuousPrinter()
+    printer = ContinuousPrinter(mock=mock, run_generator=run_generator)
 
     if args.command == 'status':
         import json

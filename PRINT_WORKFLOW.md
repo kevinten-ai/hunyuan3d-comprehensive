@@ -1,99 +1,151 @@
-# 拓竹3D打印机工作流
+# Bambu Lab 打印工作流
 
-本文档描述如何使用本项目的AI生成功能为拓竹(Bambu Lab)3D打印机创建模型。
+本文档描述根项目当前支持的安全打印流程。
 
-## 工作流程概览
+## 工作流
 
-```
-文字/图片 -> Hunyuan3D AI生成 -> 模型修复/格式转换 -> 导出到Bambu Studio打印
-```
-
-## 快速开始
-
-### 1. 环境准备
-
-```bash
-cd Hunyuan3D-2
-pip install -r requirements.txt
-pip install trimesh numpy
+```text
+文字/图片输入
+  -> Hunyuan3D 真实生成或 mock 演示
+  -> STL/GLB/OBJ 模型文件
+  -> 模型修复或检查
+  -> 添加到 Bambu 打印队列
+  -> 显式启动队列
+  -> 打印机 MQTT 状态监控
 ```
 
-### 2. 生成模型
+## 1. 验证生成命令
 
-**方式一：使用快捷脚本**
+先用 dry run 确认命令，不加载模型:
 
-```bash
-# 文字生成
-python scripts/hunyuan_quick.py text "a cute robot"
-
-# 图片生成
-python scripts/hunyuan_quick.py image ./photo.png
-
-# 批量生成
-python scripts/hunyuan_quick.py batch ./photos/
+```powershell
+python scripts/hunyuan_quick.py text "a small robot" --dry-run --lite
+python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --dry-run --quality lite
 ```
 
-**方式二：直接使用Hunyuan3D**
+## 2. 生成模型
 
-```bash
-# V2 图片转3D
-cd Hunyuan3D-2
-python minimal_demo.py
+真实文字生成:
 
-# V1 文字转3D
-cd Hunyuan3D-1
-python main.py --text_prompt "a dragon statue" --use_lite
+```powershell
+python scripts/hunyuan_quick.py text "a small robot" --lite
 ```
 
-### 3. 处理模型
+真实图片生成:
 
-```bash
-# 修复模型（填补空洞、修复法线）
-python scripts/model_converter.py repair ./output/model.stl
-
-# 转换为STL
-python scripts/model_converter.py convert ./output/model.obj stl
-
-# 查看模型信息
-python scripts/model_converter.py info ./output/model.stl
+```powershell
+python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --quality lite
 ```
 
-### 4. 收集管理模型
+这些命令需要 Hunyuan3D 依赖、模型权重和可用硬件。
 
-```bash
-# 添加模型到库
-python scripts/model_collector.py add ./model.stl toys my_robot
+演示端到端流程可以使用 mock 模式:
 
-# 列出所有模型
-python scripts/model_collector.py list
-
-# 导出到打印目录
-python scripts/model_collector.py export my_robot
+```powershell
+python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 ```
 
-### 5. 打印
+## 3. 修复和转换模型
 
-1. 打开 **Bambu Studio**
-2. 导入 `models/ready-to-print/` 目录下的STL文件
-3. 选择拓竹打印机（X1C、P1S等）
-4. 调整打印参数并切片
-5. 发送打印
+查看模型信息:
+
+```powershell
+python scripts/model_converter.py info outputs/demo/demo.stl
+```
+
+修复模型:
+
+```powershell
+python scripts/model_converter.py repair outputs/demo/demo.stl
+```
+
+转换格式:
+
+```powershell
+python scripts/model_converter.py convert outputs/demo/demo.glb stl demo_from_glb
+```
+
+## 4. 配置打印机
+
+复制配置模板:
+
+```powershell
+copy config\printer.json.example config\printer.json
+```
+
+编辑本地配置:
+
+```json
+{
+  "host": "192.168.1.100",
+  "access_code": "YOUR_ACCESS_CODE",
+  "serial": "SNXXX",
+  "method": "mqtt"
+}
+```
+
+也可以用 CLI 写入:
+
+```powershell
+python scripts/auto_print.py config --host 192.168.1.100 --access-code YOUR_CODE --serial SNXXX
+```
+
+`config/printer.json` 包含本地设备信息，不能提交到 Git。
+
+## 5. 添加和启动打印
+
+添加任务只会入队，不会自动连接或启动打印机:
+
+```powershell
+python scripts/auto_print.py add outputs/demo/demo.stl --name demo
+python scripts/auto_print.py list
+```
+
+显式启动队列:
+
+```powershell
+python scripts/auto_print.py start
+```
+
+查看状态:
+
+```powershell
+python scripts/auto_print.py status
+python scripts/auto_print.py watch
+```
+
+## 6. AI 到打印
+
+演示模式:
+
+```powershell
+python scripts/ai_to_print.py text "a rabbit" --mock
+```
+
+真实生成并添加到队列:
+
+```powershell
+python scripts/ai_to_print.py text "a rabbit" --run-generator
+python scripts/ai_to_print.py image Hunyuan3D-2/assets/demo.png --run-generator
+```
+
+如果只想生成和修复模型，不加入打印队列:
+
+```powershell
+python scripts/ai_to_print.py text "a rabbit" --run-generator --no-print
+```
 
 ## 推荐打印设置
 
 | 类型 | 层高 | 填充 | 壁厚 |
-|------|------|------|------|
-| 标准 | 0.2mm | 15-25% | 0.8mm |
-| 高精度 | 0.12mm | 20% | 1.2mm |
-| 机械零件 | 0.16mm | 40-60% | 1.6mm |
+|---|---:|---:|---:|
+| 标准模型 | 0.20 mm | 15-25% | 0.8 mm |
+| 高精度模型 | 0.12 mm | 20% | 1.2 mm |
+| 功能件 | 0.16 mm | 40-60% | 1.6 mm |
 
-## 常见问题
+## 外部验证门槛
 
-**Q: 模型底部不平？**
-A: 使用 `model_converter.py repair` 修复
-
-**Q: 生成模型有裂缝？**
-A: 尝试Hunyuan3D-2的PBR模式
-
-**Q: 打印时拉丝？**
-A: 在Bambu Studio中调整回抽设置
+- 真实生成需要模型权重、依赖和兼容 GPU/CPU 环境。
+- 自动打印需要 Bambu 打印机与电脑在同一局域网。
+- 打印机需要启用本地网络控制，并提供正确 IP、Access Code 和 Serial。
+- MQTT 上传和打印命令仍需要在真实设备上验证。

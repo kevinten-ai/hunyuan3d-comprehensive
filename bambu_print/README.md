@@ -10,6 +10,12 @@
 - **持久化存储** - 队列和配置自动保存
 - **多文件格式支持** - STL, OBJ, 3MF, AMF, GLTF, GLB
 
+## 当前实现边界
+
+- MQTT 是当前实现的主要控制方式。
+- HTTP 上传逻辑是实验性路径，仍需要真实设备验证。
+- `add` 只添加任务到队列，不会默认启动打印；请显式调用 `start()` 或运行 `python scripts/auto_print.py start`。
+
 ## 安装
 
 ```bash

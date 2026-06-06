@@ -39,8 +39,8 @@ def convert_glb_to_3mf(glb_path, output_path=None):
     print(f"导出 STL: {output_path}")
     mesh.export(output_path, file_type='stl')
 
-    print(f"\n✅ 转换完成!")
-    print(f"   GLB → {output_path}")
+    print(f"\n[OK] 转换完成!")
+    print(f"   GLB -> {output_path}")
     print(f"   用拓竹 Studio 打开 STL 文件即可")
 
     return True

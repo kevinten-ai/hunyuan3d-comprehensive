@@ -2,9 +2,9 @@
 拓竹打印机客户端
 
 支持多种连接方式:
-- Moonraker: 推荐，稳定易用
-- MQTT: 高级定制
-- HTTP: 云端控制
+- MQTT: 当前实现的本地控制方式
+- HTTP: 仅用于文件上传尝试，仍需真实设备验证
+- Moonraker: 枚举保留，当前未实现连接流程
 """
 
 import time
@@ -22,13 +22,6 @@ try:
     HAS_MQTT = True
 except ImportError:
     HAS_MQTT = False
-
-try:
-    import requests
-    HAS_REQUESTS = True
-except ImportError:
-    HAS_REQUESTS = False
-
 
 class ConnectionType(Enum):
     """连接类型"""
@@ -66,7 +59,7 @@ class BambuPrinterClient:
     """
     拓竹打印机客户端
 
-    支持本地局域网控制和云端控制
+    支持本地局域网 MQTT 控制。HTTP 上传路径保留为实验性能力。
 
     示例:
         client = BambuPrinterClient(
@@ -273,7 +266,9 @@ class BambuPrinterClient:
 
     def _upload_file_http(self, filepath: str, remote_name: str) -> bool:
         """通过HTTP方式上传文件"""
-        if not HAS_REQUESTS:
+        try:
+            import requests
+        except ImportError:
             print("警告: requests库未安装，将跳过文件上传")
             print("请手动将文件放到打印机的SD卡或通过Bambu Studio上传")
             self._print_files[remote_name] = filepath

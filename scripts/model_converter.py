@@ -87,7 +87,7 @@ class ModelConverter:
         print(f"转换中: {output_path}")
         mesh.export(str(output_path), file_type=output_format[1:])
 
-        print(f"✓ 转换完成: {output_path}")
+        print(f"[OK] 转换完成: {output_path}")
         return output_path
 
     def to_stl(self, input_path: str, output_name: Optional[str] = None) -> Path:
@@ -131,7 +131,7 @@ class ModelConverter:
         output_path = self.output_dir / f"{output_name}.stl"
 
         mesh.export(str(output_path), file_type='stl')
-        print(f"✓ 模型已修复: {output_path}")
+        print(f"[OK] 模型已修复: {output_path}")
         return output_path
 
     def get_info(self, input_path: str) -> dict:
@@ -201,15 +201,16 @@ def main():
             print("错误: 请提供文件路径")
             return
         info = converter.get_info(sys.argv[2])
+        volume_text = f"{info['volume']:.2f} cm^3" if info['volume'] else "N/A"
         print(f"""
 模型信息:
 --------
 文件: {info['file']}
 顶点数: {info['vertices']:,}
 面数: {info['faces']:,}
-体积: {info['volume']:.2f} cm³" if info['volume'] else "N/A"
+体积: {volume_text}
 边界: {info['bounds']}
-封闭性: {'✓ 是' if info['is_watertight'] else '✗ 否 (可能需要修复)'}
+封闭性: {'YES' if info['is_watertight'] else 'NO (可能需要修复)'}
         """)
 
     else:

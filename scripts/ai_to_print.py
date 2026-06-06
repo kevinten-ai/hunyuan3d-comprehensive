@@ -22,6 +22,7 @@ import sys
 import os
 import time
 import argparse
+import shutil
 from pathlib import Path
 from datetime import datetime
 
@@ -67,14 +68,47 @@ def setup_printer():
             access_code=config['access_code'],
             serial=config['serial']
         )
-        print(f"✓ 已连接到打印机: {config['host']}")
+        print(f"[OK] 已连接到打印机: {config['host']}")
         return queue
     except Exception as e:
         print(f"错误: 无法连接到打印机: {e}")
         return None
 
 
-def generate_text_to_3d(prompt: str, output_dir: str = None):
+def _find_model_file(output_dir: str):
+    """Find a generated model in an output directory."""
+    output_path = Path(output_dir)
+    if not output_path.exists():
+        return None
+    for pattern in ("*.stl", "*.3mf", "*.glb", "*.obj", "*.ply"):
+        matches = sorted(output_path.rglob(pattern))
+        if matches:
+            return str(matches[0])
+    return None
+
+
+def _write_mock_stl(output_dir: str) -> str:
+    """Write a tiny ASCII STL so mock mode produces a real local file."""
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    model_file = output_path / "model.stl"
+    model_file.write_text(
+        "solid mock\n"
+        "  facet normal 0 0 1\n"
+        "    outer loop\n"
+        "      vertex 0 0 0\n"
+        "      vertex 1 0 0\n"
+        "      vertex 0 1 0\n"
+        "    endloop\n"
+        "  endfacet\n"
+        "endsolid mock\n",
+        encoding="ascii",
+    )
+    return str(model_file)
+
+
+def generate_text_to_3d(prompt: str, output_dir: str = None, mock: bool = False,
+                        run_generator: bool = False, lite: bool = True):
     """
     文字生成3D模型
 
@@ -90,29 +124,27 @@ def generate_text_to_3d(prompt: str, output_dir: str = None):
     output = output_dir or f'./outputs/text_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
     os.makedirs(output, exist_ok=True)
 
-    # 优先使用Hunyuan3D-1 (文字生成)
-    hy1_path = PROJECT_ROOT / "Hunyuan3D-1"
-    if hy1_path.exists():
-        print(f"[AI] 使用 Hunyuan3D-1 进行文字生成...")
-        # 这里可以调用实际的生成代码
-        # from Hunyuan3D-1.main import text_to_3d
-        # model_path = text_to_3d(prompt, output)
-        # return model_path
+    if mock:
+        model_file = _write_mock_stl(output)
+        print(f"[AI] Mock 模式: 已创建演示模型 {model_file}")
+        return model_file
 
-    # 备选: 使用Hunyuan3D-2
-    hy2_path = PROJECT_ROOT / "Hunyuan3D-2"
-    if hy2_path.exists():
-        print(f"[AI] 使用 Hunyuan3D-2 (需要图片)...")
+    if not run_generator:
+        print("[AI] 未执行真实生成。请使用 --run-generator 调用 Hunyuan3D-1，或使用 --mock 做演示。")
+        return None
 
-    # 模拟生成 - 实际使用时替换为真实生成代码
-    model_file = Path(output) / "model.stl"
-    print(f"[AI] 模拟生成模型: {model_file}")
-    print(f"[AI] 注意: 请将实际生成的模型文件放入此路径")
+    from scripts import hunyuan_quick
 
-    return str(model_file)
+    hunyuan_quick.text_to_3d(prompt, output_dir=output, lite=lite, dry_run=False)
+    model_file = _find_model_file(output)
+    if not model_file:
+        print(f"[AI] 未在输出目录找到模型文件: {output}")
+        return None
+    return model_file
 
 
-def generate_image_to_3d(image_path: str, output_dir: str = None, quality: str = 'standard'):
+def generate_image_to_3d(image_path: str, output_dir: str = None, quality: str = 'standard',
+                         mock: bool = False, run_generator: bool = False):
     """
     图片生成3D模型
 
@@ -129,21 +161,23 @@ def generate_image_to_3d(image_path: str, output_dir: str = None, quality: str =
     output = output_dir or f'./outputs/img_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
     os.makedirs(output, exist_ok=True)
 
-    hy2_path = PROJECT_ROOT / "Hunyuan3D-2"
-    if hy2_path.exists():
-        print(f"[AI] 使用 Hunyuan3D-2 进行图片生成...")
-        # 这里可以调用实际的生成代码
-        # from hy3dgen import ImageTo3D
-        # generator = ImageTo3D()
-        # model_path = generator.generate(image_path, output_dir=output, quality=quality)
-        # return model_path
+    if mock:
+        model_file = _write_mock_stl(output)
+        print(f"[AI] Mock 模式: 已创建演示模型 {model_file}")
+        return model_file
 
-    # 模拟生成
-    model_file = Path(output) / "model.stl"
-    print(f"[AI] 模拟生成模型: {model_file}")
-    print(f"[AI] 注意: 请将实际生成的模型文件放入此路径")
+    if not run_generator:
+        print("[AI] 未执行真实生成。请使用 --run-generator 调用 Hunyuan3D-2，或使用 --mock 做演示。")
+        return None
 
-    return str(model_file)
+    from scripts import hunyuan_quick
+
+    hunyuan_quick.image_to_3d(image_path, output_dir=output, quality=quality, dry_run=False)
+    model_file = _find_model_file(output)
+    if not model_file:
+        print(f"[AI] 未在输出目录找到模型文件: {output}")
+        return None
+    return model_file
 
 
 def repair_model(model_path: str) -> str:
@@ -163,11 +197,22 @@ def repair_model(model_path: str) -> str:
         print(f"[修复] 警告: 文件不存在，跳过修复")
         return model_path
 
-    # 模拟修复
-    repaired_file = model_file.parent / f"{model_file.stem}_repaired{model_file.suffix}"
-    print(f"[修复] 修复完成: {repaired_file}")
+    try:
+        from scripts.model_converter import ModelConverter
 
-    return str(repaired_file)
+        converter = ModelConverter(output_dir=str(model_file.parent))
+        repaired_file = converter.repair_mesh(str(model_file), f"{model_file.stem}_repaired")
+        if Path(repaired_file).exists():
+            print(f"[修复] 修复完成: {repaired_file}")
+            return str(repaired_file)
+    except Exception as e:
+        print(f"[修复] 无法自动修复，保留原文件: {e}")
+
+    fallback_file = model_file.parent / f"{model_file.stem}_checked{model_file.suffix}"
+    if not fallback_file.exists():
+        shutil.copy2(model_file, fallback_file)
+    print(f"[修复] 已保留可用模型: {fallback_file}")
+    return str(fallback_file)
 
 
 def add_to_print_queue(queue: PrintQueue, model_path: str, name: str = None):
@@ -261,6 +306,9 @@ def main():
     text_parser.add_argument('--output', '-o', help='输出目录')
     text_parser.add_argument('--no-print', action='store_true', help='仅生成，不打印')
     text_parser.add_argument('--name', help='打印任务名称')
+    text_parser.add_argument('--mock', action='store_true', help='演示模式：不调用模型，只返回预期模型路径')
+    text_parser.add_argument('--run-generator', action='store_true', help='调用真实 Hunyuan3D-1 生成命令')
+    text_parser.add_argument('--lite', action='store_true', help='使用 Hunyuan3D-1 Lite 模式')
 
     # image - 图片生成
     image_parser = subparsers.add_parser('image', help='图片生成3D')
@@ -270,6 +318,8 @@ def main():
                              default='standard', help='质量级别')
     image_parser.add_argument('--no-print', action='store_true', help='仅生成，不打印')
     image_parser.add_argument('--name', help='打印任务名称')
+    image_parser.add_argument('--mock', action='store_true', help='演示模式：不调用模型，只返回预期模型路径')
+    image_parser.add_argument('--run-generator', action='store_true', help='调用真实 Hunyuan3D-2 生成命令')
 
     # add - 添加到队列
     add_parser = subparsers.add_parser('add', help='添加文件到打印队列')
@@ -322,13 +372,29 @@ def main():
 
     # 文字生成
     if args.command == 'text':
-        model_path = generate_text_to_3d(args.prompt, args.output)
+        model_path = generate_text_to_3d(
+            args.prompt,
+            args.output,
+            mock=args.mock,
+            run_generator=args.run_generator,
+            lite=args.lite,
+        )
 
     # 图片生成
     elif args.command == 'image':
-        model_path = generate_image_to_3d(args.image, args.output, args.quality)
+        model_path = generate_image_to_3d(
+            args.image,
+            args.output,
+            args.quality,
+            mock=args.mock,
+            run_generator=args.run_generator,
+        )
 
     else:
+        return
+
+    if not model_path:
+        print("\n未生成模型文件；流程停止。")
         return
 
     # 修复模型
@@ -342,7 +408,7 @@ def main():
             if job_id:
                 # 启动队列
                 queue.start()
-                print("\n✓ 已启动打印队列")
+                print("\n[OK] 已启动打印队列")
                 print("使用 'python scripts/ai_to_print.py status' 查看进度")
                 print("使用 'python scripts/auto_print.py watch' 实时监控")
         else:
@@ -350,8 +416,8 @@ def main():
             print(f"模型位置: {repaired_path}")
             print("请手动使用 Bambu Studio 打印，或配置打印机后重试")
     else:
-        print(f"\n✓ 模型已生成: {repaired_path}")
-        print("使用 --print 选项可自动打印")
+        print(f"\n[OK] 模型已生成: {repaired_path}")
+        print("去掉 --no-print 后可自动添加到打印队列")
 
 
 if __name__ == '__main__':

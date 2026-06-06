@@ -8,18 +8,36 @@
 tencent/
 Hunyuan3D-1/weights/
 Hunyuan3D-2/weights/
+ComfyUI/
+Hunyuan3D-1/venv/
+venv/
+.venv/
 
 # 输出文件
 outputs/*.glb
 outputs/*.stl
 outputs/*.obj
+outputs/**/*.glb
+outputs/**/*.stl
+outputs/**/*.obj
+outputs/**/*.3mf
+outputs/text_*/
+outputs/img_*/
+outputs/continuous/
 models/ready-to-print/
+models/converted/
+Hunyuan3D-2/assets/*.glb
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+
+# 日志、运行状态和本地密钥
+*.log
+config/printer.json
+.3d_print_queue/
 
 # IDE
 .vscode/

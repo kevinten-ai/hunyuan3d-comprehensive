@@ -137,6 +137,7 @@ class PrintQueue:
         self._worker_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self._pause_event = threading.Event()
+        self.auto_start = auto_start
 
         # 回调函数
         self._on_job_start: Optional[Callable] = None
@@ -277,8 +278,8 @@ class PrintQueue:
         self._save_queue()
         print(f"[队列] 添加任务: {job.name} (ID: {job_id}, 优先级: {priority})")
 
-        # 如果队列空闲且未运行，启动队列
-        if self.status == QueueStatus.IDLE and not self._worker_thread:
+        # Only connect to the printer automatically when explicitly requested.
+        if self.auto_start and self.status == QueueStatus.IDLE and not self._worker_thread:
             self.start()
 
         return job_id
