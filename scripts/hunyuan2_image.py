@@ -32,10 +32,15 @@ def parse_args():
     return parser.parse_args()
 
 
+def resolve_cli_paths(image_path: str, output_dir: str, model_path: str) -> tuple[Path, Path, str]:
+    """Resolve local user paths before this script changes into the Hunyuan3D-2 folder."""
+    resolved_model = str(Path(model_path).resolve()) if Path(model_path).exists() else model_path
+    return Path(image_path).resolve(), Path(output_dir).resolve(), resolved_model
+
+
 def main() -> int:
     args = parse_args()
-    image_path = Path(args.image)
-    output_dir = Path(args.output)
+    image_path, output_dir, model_path = resolve_cli_paths(args.image, args.output, args.model_path)
 
     if not image_path.exists():
         print(f"错误: 图片不存在: {image_path}", file=sys.stderr)
@@ -59,7 +64,7 @@ def main() -> int:
         image = rembg(image)
 
     pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
-        args.model_path,
+        model_path,
         subfolder=args.subfolder,
         variant=args.variant,
     )
