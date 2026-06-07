@@ -547,7 +547,7 @@ class ContinuousPrinter:
 
         if not self.print_queue:
             logger.warning("[队列] 打印机未连接，跳过打印")
-            return True
+            return False
 
         job_id = self.add_to_print_queue(repaired)
         if not job_id:

@@ -188,6 +188,15 @@ class ContinuousPrintTests(unittest.TestCase):
                     patch.object(sys, "argv", argv):
                 self.assertEqual(continuous_print.main(), 0)
 
+    def test_main_returns_nonzero_when_print_requested_without_printer_config(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            argv = ["continuous_print.py", "generate", "--prompt", "a rabbit", "--mock"]
+
+            with patch.object(continuous_print, "PROJECT_ROOT", root), \
+                    patch.object(sys, "argv", argv):
+                self.assertEqual(continuous_print.main(), 1)
+
     def test_prompts_returns_nonzero_when_prompt_file_is_missing(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)

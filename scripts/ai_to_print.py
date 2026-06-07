@@ -517,7 +517,7 @@ def main():
             print("\n注意: 模型已生成，但无法自动打印")
             print(f"模型位置: {repaired_path}")
             print("请手动使用 Bambu Studio 打印，或配置打印机后重试")
-            return 0
+            return 1
     else:
         print(f"\n[OK] 模型已生成: {repaired_path}")
         print("去掉 --no-print 后可自动添加到打印队列")

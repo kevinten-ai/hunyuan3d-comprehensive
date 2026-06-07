@@ -263,6 +263,20 @@ class AiToPrintTests(unittest.TestCase):
 
             self.assertIn("[OK]", stdout.getvalue())
 
+    def test_main_returns_nonzero_when_print_requested_without_printer_config(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output_dir = root / "outputs"
+            stdout = StringIO()
+            argv = ["ai_to_print.py", "text", "a rabbit", "--output", str(output_dir), "--mock"]
+
+            with patch.object(ai_to_print, "PROJECT_ROOT", root), \
+                    patch.object(sys, "argv", argv), \
+                    patch("sys.stdout", new=stdout):
+                self.assertEqual(ai_to_print.main(), 1)
+
+            self.assertIn("无法自动打印", stdout.getvalue())
+
     def test_discover_returns_nonzero_when_no_printers_found(self):
         stdout = StringIO()
 
