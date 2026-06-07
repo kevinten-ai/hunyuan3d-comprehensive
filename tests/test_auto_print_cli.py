@@ -12,9 +12,11 @@ from scripts import auto_print
 
 class FakeQueue:
     def __init__(self, add_error: Exception | None = None,
-                 control_error: Exception | None = None):
+                 control_error: Exception | None = None,
+                 control_result: bool | None = None):
         self.add_error = add_error
         self.control_error = control_error
+        self.control_result = control_result
 
     def add(self, *_args, **_kwargs):
         if self.add_error:
@@ -34,10 +36,14 @@ class FakeQueue:
     def pause(self):
         if self.control_error:
             raise self.control_error
+        if self.control_result is not None:
+            return self.control_result
 
     def resume(self):
         if self.control_error:
             raise self.control_error
+        if self.control_result is not None:
+            return self.control_result
 
     def stop(self):
         if self.control_error:
@@ -137,6 +143,21 @@ class AutoPrintCliTests(unittest.TestCase):
                 combined_output = stdout.getvalue() + stderr.getvalue()
                 self.assertIn("queue offline", combined_output)
                 self.assertNotIn("Traceback", combined_output)
+
+    def test_pause_resume_return_nonzero_when_queue_refuses_control(self):
+        for command in ["pause", "resume"]:
+            with self.subTest(command=command):
+                stdout = StringIO()
+
+                with patch.object(
+                    auto_print,
+                    "get_queue",
+                    return_value=FakeQueue(control_result=False),
+                ), patch.object(sys, "argv", ["auto_print.py", command]), \
+                        patch("sys.stdout", new=stdout):
+                    self.assertEqual(auto_print.main(), 1)
+
+                self.assertIn("失败", stdout.getvalue())
 
 
 if __name__ == "__main__":

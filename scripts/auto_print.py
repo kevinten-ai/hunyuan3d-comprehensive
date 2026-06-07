@@ -290,8 +290,11 @@ def cmd_pause(args):
     if queue is None:
         return 1
 
-    queue.pause()
+    if not queue.pause():
+        print("错误: 暂停队列失败")
+        return 1
     print("队列已暂停")
+    return 0
 
 
 def cmd_resume(args):
@@ -300,8 +303,11 @@ def cmd_resume(args):
     if queue is None:
         return 1
 
-    queue.resume()
+    if not queue.resume():
+        print("错误: 继续队列失败")
+        return 1
     print("队列已继续")
+    return 0
 
 
 def cmd_stop(args):

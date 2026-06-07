@@ -11,11 +11,17 @@ from bambu_print.print_queue import QueuedJob
 
 class FakePrinter:
     def __init__(self, send_file_result: bool = True,
-                 stop_print_result: bool = True):
+                 stop_print_result: bool = True,
+                 pause_print_result: bool = True,
+                 resume_print_result: bool = True):
         self.send_file_result = send_file_result
         self.stop_print_result = stop_print_result
+        self.pause_print_result = pause_print_result
+        self.resume_print_result = resume_print_result
         self.start_print_called = False
         self.stop_print_called = False
+        self.pause_print_called = False
+        self.resume_print_called = False
         self.disconnected = False
 
     def connect(self):
@@ -34,6 +40,14 @@ class FakePrinter:
     def stop_print(self):
         self.stop_print_called = True
         return self.stop_print_result
+
+    def pause_print(self):
+        self.pause_print_called = True
+        return self.pause_print_result
+
+    def resume_print(self):
+        self.resume_print_called = True
+        return self.resume_print_result
 
     def get_status(self):
         raise AssertionError("get_status should not run when upload fails")
@@ -169,6 +183,43 @@ class PrintQueueTests(unittest.TestCase):
             history = queue.get_history()
             self.assertEqual(len(history), 1)
             self.assertEqual(history[0]["status"], "cancelled")
+
+    def test_pause_current_job_fails_when_printer_pause_fails(self):
+        with TemporaryDirectory() as tmp:
+            queue = self.make_queue(Path(tmp) / "queue")
+            queue.printer = FakePrinter(pause_print_result=False)
+            queue.status = QueueStatus.PRINTING
+            queue.current_job = QueuedJob(
+                id="job123",
+                filepath="model.3mf",
+                name="active print",
+                status="printing",
+            )
+
+            self.assertFalse(queue.pause())
+
+            self.assertTrue(queue.printer.pause_print_called)
+            self.assertEqual(queue.status, QueueStatus.PRINTING)
+            self.assertFalse(queue._pause_event.is_set())
+
+    def test_resume_current_job_fails_when_printer_resume_fails(self):
+        with TemporaryDirectory() as tmp:
+            queue = self.make_queue(Path(tmp) / "queue")
+            queue.printer = FakePrinter(resume_print_result=False)
+            queue.status = QueueStatus.PAUSED
+            queue._pause_event.set()
+            queue.current_job = QueuedJob(
+                id="job123",
+                filepath="model.3mf",
+                name="active print",
+                status="printing",
+            )
+
+            self.assertFalse(queue.resume())
+
+            self.assertTrue(queue.printer.resume_print_called)
+            self.assertEqual(queue.status, QueueStatus.PAUSED)
+            self.assertTrue(queue._pause_event.is_set())
 
 
 if __name__ == "__main__":

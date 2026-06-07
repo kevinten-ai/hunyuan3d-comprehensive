@@ -343,20 +343,28 @@ class PrintQueue:
     def pause(self):
         """暂停队列"""
         if self.status == QueueStatus.RUNNING or self.status == QueueStatus.PRINTING:
-            self._pause_event.set()
             if self.current_job:
-                self.printer.pause_print()
+                if not self.printer.pause_print():
+                    print("[队列] 暂停打印失败")
+                    return False
+            self._pause_event.set()
             self.status = QueueStatus.PAUSED
             print("[队列] 队列已暂停")
+            return True
+        return False
 
     def resume(self):
         """继续队列"""
         if self.status == QueueStatus.PAUSED:
-            self._pause_event.clear()
             if self.current_job:
-                self.printer.resume_print()
+                if not self.printer.resume_print():
+                    print("[队列] 恢复打印失败")
+                    return False
+            self._pause_event.clear()
             self.status = QueueStatus.RUNNING
             print("[队列] 队列已继续")
+            return True
+        return False
 
     def stop(self):
         """停止队列"""
