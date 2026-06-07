@@ -249,6 +249,7 @@ python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 ```
 
 完整验证清单见 [docs/VERIFICATION.md](docs/VERIFICATION.md)。
+交付摘要见 [docs/HANDOFF.md](docs/HANDOFF.md)。
 
 ## 不应提交的内容
 

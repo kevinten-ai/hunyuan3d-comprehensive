@@ -20,6 +20,7 @@ python scripts/hunyuan_quick.py text "a small robot" --dry-run
 python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --dry-run --quality lite
 python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 python scripts/continuous_print.py generate --prompt "a rabbit" --no-print --mock
+# Expected no-model gate unless --mock or --run-generator is supplied:
 python scripts/continuous_print.py generate --prompt "a rabbit" --no-print
 python scripts/generate_claude_crabs.py --list
 python scripts/model_converter.py info outputs/demo/demo.stl
