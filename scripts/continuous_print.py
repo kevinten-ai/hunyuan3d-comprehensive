@@ -508,7 +508,7 @@ class ContinuousPrinter:
 
         logger.info("[提示词] 所有提示词处理完成")
 
-    def run_single(self, prompt: str = None, image: str = None):
+    def run_single(self, prompt: str = None, image: str = None) -> bool:
         """
         单次生成
 
@@ -522,16 +522,29 @@ class ContinuousPrinter:
             model_path = self.generate_from_image(image)
         else:
             logger.error("请提供 prompt 或 image")
-            return
+            return False
 
-        if model_path:
-            repaired = self.repair_model(model_path)
-            job_id = self.add_to_print_queue(repaired)
+        if not model_path:
+            logger.warning("[完成] 未生成模型，流程停止")
+            return False
 
-            if job_id and self.auto_start:
-                self.start_printing()
-                logger.info("[完成] 已添加到打印队列")
-                self.wait_for_print_completion()
+        repaired = self.repair_model(model_path)
+        if not self.auto_start:
+            logger.info(f"[完成] 模型已生成: {repaired}")
+            return True
+
+        if not self.print_queue:
+            logger.warning("[队列] 打印机未连接，跳过打印")
+            return True
+
+        job_id = self.add_to_print_queue(repaired)
+        if not job_id:
+            return False
+
+        self.start_printing()
+        logger.info("[完成] 已添加到打印队列")
+        self.wait_for_print_completion()
+        return True
 
     def stop(self):
         """停止持续生成"""
@@ -612,6 +625,10 @@ def main():
 
     args = parser.parse_args()
 
+    if not args.command:
+        parser.print_help()
+        return 0
+
     mock = getattr(args, 'mock', False)
     run_generator = getattr(args, 'run_generator', False)
 
@@ -621,14 +638,17 @@ def main():
     if args.command == 'status':
         import json
         print(json.dumps(printer.get_status(), indent=2, ensure_ascii=False))
-        return
+        return 0
 
     if args.command == 'generate':
         if not args.prompt and not args.image:
             print("请提供 --prompt 或 --image")
-            return
+            return 1
         printer.auto_start = not args.no_print
-        printer.run_single(prompt=args.prompt, image=args.image)
+        if not printer.run_single(prompt=args.prompt, image=args.image):
+            print("未生成模型；流程停止。")
+            return 1
+        return 0
 
     elif args.command == 'watch':
         printer.auto_start = not args.no_auto_print
@@ -636,13 +656,16 @@ def main():
             printer.run_folder_watch(args.folder, args.extensions)
         except KeyboardInterrupt:
             printer.stop()
+        return 0
 
     elif args.command == 'prompts':
         printer.run_prompt_list(args.file, args.delay)
+        return 0
 
     else:
         parser.print_help()
+        return 1
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

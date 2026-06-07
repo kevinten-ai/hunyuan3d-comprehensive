@@ -114,6 +114,7 @@ python scripts/ai_to_print.py image Hunyuan3D-2/assets/demo.png --run-generator 
 
 去掉 `--no-print` 后，脚本会尝试读取本地打印机配置并把模型加入打印队列。
 `ai_to_print.py` 和 `continuous_print.py` 会复用同一套本地配置检查；如果 `config/printer.json` 仍是模板占位值，会跳过自动打印。
+`continuous_print.py generate --no-print` 在没有生成模型时也会返回非 0；加 `--mock` 是本地连续生成演示成功路径。
 
 ## Bambu Lab 打印机配置
 
@@ -238,6 +239,7 @@ python scripts/check_comfyui_workflow_assets.py --allow-missing
 python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
 python -m unittest tests.test_ai_to_print -v
+python -m unittest tests.test_continuous_print -v
 python scripts/hunyuan_quick.py text "a small robot" --dry-run
 python scripts/check_comfyui_workflow_assets.py --allow-missing
 # Expected to report a missing local secret and exit nonzero until config/printer.json exists:

@@ -1,6 +1,7 @@
 import sys
 import json
 import unittest
+from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -60,6 +61,37 @@ class ContinuousPrintTests(unittest.TestCase):
 
             self.assertIsNone(printer.printer_config)
             self.assertIsNone(printer.print_queue)
+
+    def test_main_returns_nonzero_without_prompt_or_image(self):
+        stdout = StringIO()
+
+        with patch.object(sys, "argv", ["continuous_print.py", "generate"]), \
+                patch("sys.stdout", new=stdout):
+            self.assertEqual(continuous_print.main(), 1)
+
+        self.assertIn("请提供", stdout.getvalue())
+
+    def test_main_returns_nonzero_when_generation_does_not_produce_model(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            stdout = StringIO()
+            argv = ["continuous_print.py", "generate", "--prompt", "a rabbit", "--no-print"]
+
+            with patch.object(continuous_print, "PROJECT_ROOT", root), \
+                    patch.object(sys, "argv", argv), \
+                    patch("sys.stdout", new=stdout):
+                self.assertEqual(continuous_print.main(), 1)
+
+        self.assertIn("未生成模型", stdout.getvalue())
+
+    def test_main_returns_zero_for_mock_no_print_flow(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            argv = ["continuous_print.py", "generate", "--prompt", "a rabbit", "--no-print", "--mock"]
+
+            with patch.object(continuous_print, "PROJECT_ROOT", root), \
+                    patch.object(sys, "argv", argv):
+                self.assertEqual(continuous_print.main(), 0)
 
 
 if __name__ == "__main__":
