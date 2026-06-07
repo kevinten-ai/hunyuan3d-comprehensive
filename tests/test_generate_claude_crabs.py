@@ -1,6 +1,8 @@
 import sys
 import unittest
+from io import StringIO
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -22,6 +24,27 @@ class GenerateClaudeCrabsTests(unittest.TestCase):
         self.assertNotIn("--output_dir", command)
         self.assertIn("--use_lite", command)
         self.assertIn("--save_memory", command)
+
+    def test_main_list_returns_zero(self):
+        stdout = StringIO()
+
+        with patch.object(sys, "argv", ["generate_claude_crabs.py", "--list"]), \
+                patch("sys.stdout", new=stdout):
+            self.assertEqual(generate_claude_crabs.main(), 0)
+
+        self.assertIn("Claude Crab Designs", stdout.getvalue())
+
+    def test_main_returns_nonzero_when_hunyuan_entrypoint_missing(self):
+        with TemporaryDirectory() as tmp:
+            stdout = StringIO()
+            argv = ["generate_claude_crabs.py", "--index", "0", "--count", "1"]
+
+            with patch.object(generate_claude_crabs, "PROJECT_ROOT", Path(tmp)), \
+                    patch.object(sys, "argv", argv), \
+                    patch("sys.stdout", new=stdout):
+                self.assertEqual(generate_claude_crabs.main(), 1)
+
+        self.assertIn("找不到 Hunyuan3D-1/main.py", stdout.getvalue())
 
 
 if __name__ == "__main__":

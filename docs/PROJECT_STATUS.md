@@ -21,7 +21,7 @@
 | Hunyuan command bridge | Implemented wrapper | `scripts/hunyuan_quick.py`, `scripts/hunyuan2_image.py`; dry-run and local failure return-code paths verified | Real generation requires weights/hardware |
 | Full AI-to-print | Explicit modes | `scripts/ai_to_print.py` uses `--mock` for demo and `--run-generator` for real commands; local success and no-model failure return-code paths verified; printer config preflight rejects template config | Real generator and printer validation |
 | Continuous generation and print | Explicit modes | `scripts/continuous_print.py` uses `--mock` for demo and `--run-generator` for real commands; local generate success and no-model failure return-code paths verified; printer config preflight rejects template config | Real generator and printer validation |
-| Claude crab batch prompts | Command builder verified | `scripts/generate_claude_crabs.py`; `--list` verified | Real Hunyuan3D-1 generation requires weights/hardware |
+| Claude crab batch prompts | Command builder verified | `scripts/generate_claude_crabs.py`; `--list` success and missing Hunyuan3D-1 entrypoint failure return-code paths verified | Real Hunyuan3D-1 generation requires weights/hardware |
 
 ## Important Boundaries
 

@@ -7,6 +7,7 @@
 
 import os
 import sys
+import argparse
 from pathlib import Path
 from datetime import datetime
 
@@ -84,7 +85,7 @@ def generate_claude_crabs(output_base: str = None, start_index: int = 0, count: 
     main_file = PROJECT_ROOT / 'Hunyuan3D-1' / 'main.py'
     if not main_file.exists():
         print("错误: 找不到 Hunyuan3D-1/main.py")
-        return
+        return None
 
     # 设置输出目录
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -174,7 +175,7 @@ def generate_single_crab(prompt_index: int = 0):
     """生成单个指定的小螃蟹"""
     if prompt_index >= len(CLAUDE_CRAB_PROMPTS):
         print(f"错误: 索引超出范围 (0-{len(CLAUDE_CRAB_PROMPTS)-1})")
-        return
+        return None
     
     crab = CLAUDE_CRAB_PROMPTS[prompt_index]
     print(f"生成单个模型: {crab['desc']}")
@@ -188,9 +189,14 @@ def generate_single_crab(prompt_index: int = 0):
     )
 
 
-if __name__ == "__main__":
-    import argparse
-    
+def _result_exit_code(result) -> int:
+    if result is None:
+        return 1
+    successful, failed = result
+    return 0 if successful and not failed else 1
+
+
+def main() -> int:
     parser = argparse.ArgumentParser(description='生成 Claude 小螃蟹 3D 模型')
     parser.add_argument('--all', action='store_true', help='生成全部8个模型')
     parser.add_argument('--index', type=int, default=0, help='生成指定索引的模型 (0-7)')
@@ -206,11 +212,17 @@ if __name__ == "__main__":
             print(f"{i}. {crab['desc']}")
             print(f"   Prompt: {crab['prompt'][:60]}...")
             print()
+        return 0
     elif args.all:
-        generate_claude_crabs(output_base=args.output)
+        return _result_exit_code(generate_claude_crabs(output_base=args.output))
     else:
-        generate_claude_crabs(
+        result = generate_claude_crabs(
             output_base=args.output,
             start_index=args.index,
             count=args.count or 2  # 默认生成2个
         )
+        return _result_exit_code(result)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

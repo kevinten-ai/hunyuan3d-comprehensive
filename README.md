@@ -209,6 +209,7 @@ python scripts/generate_claude_crabs.py --count 2 --output outputs/claude_crabs_
 ```
 
 该脚本会调用 `Hunyuan3D-1/main.py`，因此同样需要 Hunyuan3D-1 依赖、权重和可用硬件。
+`--list` 是本地成功路径；缺少 Hunyuan3D-1 入口或批量生成失败时 CLI 会返回非 0。
 
 ## ComfyUI
 

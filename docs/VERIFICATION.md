@@ -9,6 +9,7 @@ python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
 python -m unittest tests.test_ai_to_print -v
 python -m unittest tests.test_continuous_print -v
+python -m unittest tests.test_generate_claude_crabs -v
 python -m unittest tests.test_hunyuan_quick -v
 python -m unittest tests.test_model_converter_cli -v
 python -m unittest tests.test_model_collector_cli tests.test_model_collector -v
@@ -46,6 +47,8 @@ The `auto_print.py config` and `auto_print.py check-config` commands validate th
 `scripts/ai_to_print.py` returns nonzero when generation does not produce a model, while `--mock --no-print` remains the local success demo path.
 
 `scripts/continuous_print.py generate` returns nonzero when required inputs are missing or generation does not produce a model; `--mock --no-print` remains the local success demo path.
+
+`scripts/generate_claude_crabs.py --list` returns success without loading models. Generation commands return nonzero when the Hunyuan3D-1 entrypoint is missing or the batch does not complete successfully.
 
 ## External Checks
 
