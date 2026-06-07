@@ -1,11 +1,13 @@
 import sys
 import unittest
+from types import SimpleNamespace
 from tempfile import TemporaryDirectory
 from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from bambu_print import printer_client
 from bambu_print.printer_client import BambuPrinterClient, PrinterStatus
 
 
@@ -24,6 +26,54 @@ class FakeRequests:
         if self.error:
             raise self.error
         return self.response
+
+
+class FakeMqttClient:
+    def __init__(self, connect_result: int = 0, connect_rc: int | None = None):
+        self.connect_result = connect_result
+        self.connect_rc = connect_rc
+        self.on_connect = None
+        self.on_disconnect = None
+        self.on_message = None
+        self.loop_started = False
+        self.loop_stopped = False
+        self.disconnected = False
+        self.subscriptions = []
+
+    def username_pw_set(self, *_args, **_kwargs):
+        return None
+
+    def tls_set(self, *_args, **_kwargs):
+        return None
+
+    def connect(self, *_args, **_kwargs):
+        return self.connect_result
+
+    def loop_start(self):
+        self.loop_started = True
+        if self.connect_rc is not None and self.on_connect:
+            self.on_connect(self, None, None, self.connect_rc)
+
+    def loop_stop(self):
+        self.loop_stopped = True
+
+    def disconnect(self):
+        self.disconnected = True
+
+    def subscribe(self, topic):
+        self.subscriptions.append(topic)
+
+
+class FakeMqttModule:
+    MQTT_ERR_SUCCESS = 0
+    MQTTv311 = object()
+    ssl = SimpleNamespace(PROTOCOL_TLSv1_2=object())
+
+    def __init__(self, client: FakeMqttClient):
+        self.client = client
+
+    def Client(self, *_args, **_kwargs):
+        return self.client
 
 
 class PrinterClientTests(unittest.TestCase):
@@ -62,6 +112,49 @@ class PrinterClientTests(unittest.TestCase):
         self.assertEqual(status.total_layers, 80)
         self.assertEqual(status.remaining_time, 3600)
         self.assertEqual(status.ip_address, "192.0.2.10")
+
+    def test_connect_waits_for_mqtt_success_callback(self):
+        fake_client = FakeMqttClient(connect_result=0, connect_rc=0)
+        fake_mqtt = FakeMqttModule(fake_client)
+        client = self.make_client()
+        client.timeout = 0.01
+
+        with patch.object(printer_client, "HAS_MQTT", True), \
+                patch.object(printer_client, "mqtt", fake_mqtt):
+            self.assertTrue(client.connect())
+
+        self.assertTrue(client.is_connected())
+        self.assertTrue(fake_client.loop_started)
+        self.assertEqual(fake_client.subscriptions, ["p/SN000/report/#"])
+
+    def test_connect_returns_false_when_mqtt_success_callback_never_arrives(self):
+        fake_client = FakeMqttClient(connect_result=0, connect_rc=None)
+        fake_mqtt = FakeMqttModule(fake_client)
+        client = self.make_client()
+        client.timeout = 0.01
+
+        with patch.object(printer_client, "HAS_MQTT", True), \
+                patch.object(printer_client, "mqtt", fake_mqtt):
+            self.assertFalse(client.connect())
+
+        self.assertFalse(client.is_connected())
+        self.assertTrue(fake_client.loop_started)
+        self.assertTrue(fake_client.loop_stopped)
+        self.assertTrue(fake_client.disconnected)
+
+    def test_connect_returns_false_when_mqtt_callback_reports_failure(self):
+        fake_client = FakeMqttClient(connect_result=0, connect_rc=5)
+        fake_mqtt = FakeMqttModule(fake_client)
+        client = self.make_client()
+        client.timeout = 0.01
+
+        with patch.object(printer_client, "HAS_MQTT", True), \
+                patch.object(printer_client, "mqtt", fake_mqtt):
+            self.assertFalse(client.connect())
+
+        self.assertFalse(client.is_connected())
+        self.assertTrue(fake_client.loop_stopped)
+        self.assertTrue(fake_client.disconnected)
 
     def test_start_print_uses_explicit_filename_without_uploaded_file_cache(self):
         client = self.make_client()

@@ -104,6 +104,7 @@ class BambuPrinterClient:
 
         self._mqtt_client = None
         self._mqtt_connected = False
+        self._mqtt_connect_event = threading.Event()
         self._status_callbacks: List[Callable] = []
         self._last_status: PrinterStatus = PrinterStatus()
 
@@ -140,6 +141,7 @@ class BambuPrinterClient:
         else:
             print(f"[MQTT] 连接失败，返回码: {rc}")
             self._mqtt_connected = False
+        self._mqtt_connect_event.set()
 
     def _on_mqtt_disconnect(self, client, userdata, rc):
         """MQTT断开连接回调"""
@@ -198,6 +200,8 @@ class BambuPrinterClient:
         self._mqtt_client = self._create_mqtt_client()
         if self._mqtt_client is None:
             return False
+        self._mqtt_connect_event.clear()
+        self._mqtt_connected = False
 
         try:
             print(f"[MQTT] 正在连接到 {self.host}:{self.MQTT_PORT}...")
@@ -208,10 +212,35 @@ class BambuPrinterClient:
 
             # 启动消息循环
             self._mqtt_client.loop_start()
+            if not self._mqtt_connect_event.wait(self.timeout):
+                print("[MQTT] 连接确认超时")
+                self._cleanup_failed_mqtt_connection()
+                return False
+
+            if not self._mqtt_connected:
+                self._cleanup_failed_mqtt_connection()
+                return False
+
             return True
         except Exception as e:
             print(f"[MQTT] 连接异常: {e}")
+            self._cleanup_failed_mqtt_connection()
             return False
+
+    def _cleanup_failed_mqtt_connection(self):
+        """Clean up a failed MQTT connection attempt."""
+        if not self._mqtt_client:
+            return
+        try:
+            self._mqtt_client.loop_stop()
+        except Exception:
+            pass
+        try:
+            self._mqtt_client.disconnect()
+        except Exception:
+            pass
+        self._mqtt_client = None
+        self._mqtt_connected = False
 
     def disconnect(self):
         """断开连接"""
