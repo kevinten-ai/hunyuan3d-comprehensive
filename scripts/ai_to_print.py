@@ -337,7 +337,7 @@ def main():
 
     if not args.command:
         parser.print_help()
-        return
+        return 0
 
     # 发现打印机
     if args.command == 'discover':
@@ -349,7 +349,7 @@ def main():
                 print(f"  - {p['ip']}")
         else:
             print("未发现打印机")
-        return
+        return 0
 
     # 查看状态
     if args.command == 'status':
@@ -361,14 +361,15 @@ def main():
             if status['current_job']:
                 print(f"当前任务: {status['current_job']['name']}")
                 print(f"进度: {status['current_job']['progress']:.1f}%")
-        return
+            return 0
+        return 1
 
     # 添加到队列
     if args.command == 'add':
         queue = setup_printer()
         if queue:
-            add_to_print_queue(queue, args.file, args.name)
-        return
+            return 0 if add_to_print_queue(queue, args.file, args.name) else 1
+        return 1
 
     # 文字生成
     if args.command == 'text':
@@ -391,11 +392,11 @@ def main():
         )
 
     else:
-        return
+        return 1
 
     if not model_path:
         print("\n未生成模型文件；流程停止。")
-        return
+        return 1
 
     # 修复模型
     repaired_path = repair_model(model_path)
@@ -411,14 +412,18 @@ def main():
                 print("\n[OK] 已启动打印队列")
                 print("使用 'python scripts/ai_to_print.py status' 查看进度")
                 print("使用 'python scripts/auto_print.py watch' 实时监控")
+                return 0
+            return 1
         else:
             print("\n注意: 模型已生成，但无法自动打印")
             print(f"模型位置: {repaired_path}")
             print("请手动使用 Bambu Studio 打印，或配置打印机后重试")
+            return 0
     else:
         print(f"\n[OK] 模型已生成: {repaired_path}")
         print("去掉 --no-print 后可自动添加到打印队列")
+        return 0
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

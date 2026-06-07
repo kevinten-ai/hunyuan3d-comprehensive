@@ -12,6 +12,7 @@
 - Bambu client tests cover default status fields, MQTT report parsing, queue status serialization, and local `project_file` command payload construction.
 - `model_converter.py` returns nonzero for local CLI input failures and reports missing files without tracebacks.
 - `auto_print.py` returns nonzero for local add/remove/cancel failure paths instead of reporting a false-success CLI exit.
+- `ai_to_print.py` returns nonzero when generation does not produce a model, while `--mock --no-print` remains a local success path.
 - `auto_print.py config` rejects template printer values before writing local config.
 - AI-to-print and continuous-print entry points reuse the printer config preflight, so template `printer.json` values do not trigger queue creation.
 - `model_collector.py` supports isolated model-library roots through `MODEL_COLLECTOR_MODELS_DIR` and returns nonzero for local CLI input failures.

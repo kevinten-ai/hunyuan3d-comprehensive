@@ -1,6 +1,7 @@
 import sys
 import json
 import unittest
+from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -80,6 +81,25 @@ class AiToPrintTests(unittest.TestCase):
 
             self.assertIsNone(result)
             print_queue.assert_not_called()
+
+    def test_main_returns_nonzero_when_generation_does_not_produce_model(self):
+        stdout = StringIO()
+
+        with patch.object(sys, "argv", ["ai_to_print.py", "text", "a rabbit", "--no-print"]), \
+                patch("sys.stdout", new=stdout):
+            self.assertEqual(ai_to_print.main(), 1)
+
+        self.assertIn("流程停止", stdout.getvalue())
+
+    def test_main_returns_zero_for_mock_no_print_flow(self):
+        with TemporaryDirectory() as tmp:
+            stdout = StringIO()
+            argv = ["ai_to_print.py", "text", "a rabbit", "--output", tmp, "--mock", "--no-print"]
+
+            with patch.object(sys, "argv", argv), patch("sys.stdout", new=stdout):
+                self.assertEqual(ai_to_print.main(), 0)
+
+            self.assertIn("[OK]", stdout.getvalue())
 
 
 if __name__ == "__main__":

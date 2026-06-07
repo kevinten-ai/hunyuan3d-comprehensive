@@ -7,6 +7,7 @@ Run these from the repository root:
 ```powershell
 python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
+python -m unittest tests.test_ai_to_print -v
 python -m unittest tests.test_hunyuan_quick -v
 python -m unittest tests.test_model_converter_cli -v
 python -m unittest tests.test_model_collector_cli tests.test_model_collector -v
@@ -40,6 +41,8 @@ The `auto_print.py config` and `auto_print.py check-config` commands validate th
 `scripts/model_converter.py` returns nonzero for unknown commands, missing required arguments, and missing input files, and reports those user errors without a Python traceback.
 
 `scripts/hunyuan_quick.py` returns nonzero for real backend command failures and invalid batch folders while keeping dry-run command construction testable without model weights.
+
+`scripts/ai_to_print.py` returns nonzero when generation does not produce a model, while `--mock --no-print` remains the local success demo path.
 
 ## External Checks
 
@@ -76,7 +79,7 @@ python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id=
 ```
 - GLB-to-STL and GLB-to-3MF conversion are verified against `outputs/validation/hunyuan2_image/validation.glb` using both `scripts/model_converter.py` and the dedicated `scripts/glb_to_3mf.py` wrapper. The generated `models/converted/validation_hunyuan2.3mf` is readable by `model_converter.py info` and reports watertight output in this local run.
 - ComfyUI quick test exits successfully, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`. After installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`, `nodes_glsl.py` and `nodes_math.py` no longer fail to import. A temporary browser validation at `http://127.0.0.1:8190` rendered the ComfyUI UI (`Unsaved Workflow`, `Manager`, queue status, zoom controls). `python scripts/check_comfyui_workflow_assets.py --allow-missing` verifies the example workflow gates: 13 asset references checked, 7 unique required assets missing, and 2 unique optional/downloadable assets missing in the current local checkout.
-- Printer validation is pending because `config/printer.json` is not present. `python scripts/auto_print.py config/check-config` is the local preflight gate before network/printer validation, and the AI-to-print/continuous-print entry points now reuse it. Unit tests locally verify default `PrinterStatus.remaining_time`, MQTT report parsing, queue status serialization, Bambu `project_file` command payload construction, rejection of template printer config across the auto-print entry points, and clean nonzero CLI failure paths.
+- Printer validation is pending because `config/printer.json` is not present. `python scripts/auto_print.py config/check-config` is the local preflight gate before network/printer validation, and the AI-to-print/continuous-print entry points now reuse it. Unit tests locally verify default `PrinterStatus.remaining_time`, MQTT report parsing, queue status serialization, Bambu `project_file` command payload construction, rejection of template printer config across the auto-print entry points, AI-to-print no-model failures, and clean nonzero CLI failure paths.
 
 ## Release Gate
 

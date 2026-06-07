@@ -97,6 +97,7 @@ python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --quality lite
 ## AI 到打印工作流
 
 `scripts/ai_to_print.py` 用于把生成、修复、入队串起来。为了避免假成功，它默认不会调用真实生成器，也不会返回不存在的模型。
+没有生成模型时命令会返回非 0；`--mock --no-print` 是本地演示成功路径。
 
 演示模式:
 
@@ -236,6 +237,7 @@ python scripts/check_comfyui_workflow_assets.py --allow-missing
 ```powershell
 python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
+python -m unittest tests.test_ai_to_print -v
 python scripts/hunyuan_quick.py text "a small robot" --dry-run
 python scripts/check_comfyui_workflow_assets.py --allow-missing
 # Expected to report a missing local secret and exit nonzero until config/printer.json exists:
