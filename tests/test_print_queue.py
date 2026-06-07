@@ -11,10 +11,12 @@ from bambu_print.print_queue import QueuedJob
 
 class FakePrinter:
     def __init__(self, send_file_result: bool = True,
+                 start_print_result: bool = True,
                  stop_print_result: bool = True,
                  pause_print_result: bool = True,
                  resume_print_result: bool = True):
         self.send_file_result = send_file_result
+        self.start_print_result = start_print_result
         self.stop_print_result = stop_print_result
         self.pause_print_result = pause_print_result
         self.resume_print_result = resume_print_result
@@ -35,7 +37,7 @@ class FakePrinter:
 
     def start_print(self, *_args, **_kwargs):
         self.start_print_called = True
-        return True
+        return self.start_print_result
 
     def stop_print(self):
         self.stop_print_called = True
@@ -142,6 +144,38 @@ class PrintQueueTests(unittest.TestCase):
             self.assertEqual(len(history), 1)
             self.assertEqual(history[0]["status"], "failed")
             self.assertIn("文件", history[0]["error_message"])
+
+    def test_start_print_failure_marks_job_failed_without_monitoring(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            source = tmp_path / "model.3mf"
+            source.write_text("3mf", encoding="utf-8")
+
+            queue = self.make_queue(tmp_path / "queue")
+            queue.printer = FakePrinter(start_print_result=False)
+            failed_jobs = []
+
+            def on_fail(job):
+                failed_jobs.append(job)
+                queue._stop_event.set()
+
+            queue.on_job_fail(on_fail)
+
+            queue.add(str(source), name="start failure")
+
+            queue._process_queue()
+
+            self.assertEqual(queue.status, QueueStatus.IDLE)
+            self.assertEqual(queue.list_queue(), [])
+            self.assertEqual(len(failed_jobs), 1)
+            self.assertEqual(failed_jobs[0].status, "failed")
+            self.assertTrue(queue.printer.start_print_called)
+            self.assertTrue(queue.printer.disconnected)
+
+            history = queue.get_history()
+            self.assertEqual(len(history), 1)
+            self.assertEqual(history[0]["status"], "failed")
+            self.assertIn("打印命令", history[0]["error_message"])
 
     def test_cancel_current_job_fails_when_printer_stop_fails(self):
         with TemporaryDirectory() as tmp:
