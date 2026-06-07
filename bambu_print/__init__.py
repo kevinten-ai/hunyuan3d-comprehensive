@@ -11,9 +11,9 @@
 
     # 创建客户端
     client = BambuPrinterClient(
-            host="192.168.1.100",
-            access_code="your-access-code",
-            serial="SNXXX",
+            host="YOUR_PRINTER_IP",
+            access_code="YOUR_ACCESS_CODE",
+            serial="YOUR_PRINTER_SERIAL",
             connection_type=ConnectionType.MQTT
     )
 

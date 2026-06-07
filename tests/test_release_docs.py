@@ -33,7 +33,7 @@ class ReleaseDocsTests(unittest.TestCase):
             self.assertIn(required_path, content)
 
     def test_powershell_examples_do_not_use_angle_bracket_placeholders(self):
-        for relative_path in ["README.md", "docs/HANDOFF.md"]:
+        for relative_path in ["README.md", "docs/HANDOFF.md", "bambu_print/README.md"]:
             with self.subTest(path=relative_path):
                 content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
                 code_blocks = re.findall(r"```powershell\n(.*?)```", content, flags=re.DOTALL)
@@ -86,6 +86,29 @@ class ReleaseDocsTests(unittest.TestCase):
                 content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
                 for expected_value in expected_placeholders.values():
                     self.assertIn(expected_value, content)
+
+    def test_bambu_package_examples_use_copy_safe_placeholders(self):
+        old_example_values = [
+            "192.168.1.100",
+            "YOUR_CODE",
+            "your-access-code",
+            "SNXXX",
+        ]
+
+        for relative_path in [
+            "bambu_print/README.md",
+            "bambu_print/__init__.py",
+            "bambu_print/printer_client.py",
+            "bambu_print/print_queue.py",
+        ]:
+            with self.subTest(path=relative_path):
+                content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+                found = [
+                    old_value for old_value in old_example_values
+                    if old_value in content
+                ]
+
+                self.assertEqual(found, [])
 
 
 if __name__ == "__main__":

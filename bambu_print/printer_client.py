@@ -64,9 +64,9 @@ class BambuPrinterClient:
 
     示例:
         client = BambuPrinterClient(
-            host="192.168.1.100",
-            access_code="xxx",
-            serial="SNXXX"
+            host="YOUR_PRINTER_IP",
+            access_code="YOUR_ACCESS_CODE",
+            serial="YOUR_PRINTER_SERIAL"
         )
         client.connect()
         client.send_file("model.3mf")

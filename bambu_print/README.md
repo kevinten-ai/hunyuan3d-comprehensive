@@ -18,8 +18,8 @@
 
 ## 安装
 
-```bash
-pip install -r requirements-print.txt
+```powershell
+python -m pip install -r requirements-print.txt
 ```
 
 依赖:
@@ -37,12 +37,9 @@ pip install -r requirements-print.txt
 
 ### 2. 命令行使用
 
-```bash
+```powershell
 # 配置打印机
-python scripts/auto_print.py config \
-    --host 192.168.1.100 \
-    --access-code YOUR_CODE \
-    --serial SNXXX
+python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
 python scripts/auto_print.py check-config
 
 # 添加打印任务
@@ -62,9 +59,9 @@ from bambu_print import PrintQueue
 
 # 创建队列
 queue = PrintQueue(
-    printer_host="192.168.1.100",
+    printer_host="YOUR_PRINTER_IP",
     access_code="YOUR_ACCESS_CODE",
-    serial="SNXXX"
+    serial="YOUR_PRINTER_SERIAL"
 )
 
 # 添加任务
@@ -90,9 +87,9 @@ queue.start()
 from bambu_print import BambuPrinterClient, ConnectionType
 
 client = BambuPrinterClient(
-    host="192.168.1.100",
-    access_code="xxx",
-    serial="SNXXX",
+    host="YOUR_PRINTER_IP",
+    access_code="YOUR_ACCESS_CODE",
+    serial="YOUR_PRINTER_SERIAL",
     connection_type=ConnectionType.MQTT
 )
 ```
@@ -132,9 +129,9 @@ status = client.get_status()
 from bambu_print import PrintQueue
 
 queue = PrintQueue(
-    printer_host="192.168.1.100",
-    access_code="xxx",
-    serial="SNXXX"
+    printer_host="YOUR_PRINTER_IP",
+    access_code="YOUR_ACCESS_CODE",
+    serial="YOUR_PRINTER_SERIAL"
 )
 ```
 
@@ -175,21 +172,21 @@ from bambu_print import discover_printers
 
 # 发现局域网内的打印机
 printers = discover_printers(timeout=3.0)
-# 返回: [{'ip': '192.168.1.100', 'name': 'Bambu Printer'}, ...]
+# 返回: [{'ip': '192.0.2.25', 'name': 'Bambu Printer'}, ...]
 ```
 
 ## 命令行工具
 
-```bash
+```powershell
 # 配置
-python scripts/auto_print.py config --host IP --access-code CODE --serial SN
+python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
 python scripts/auto_print.py check-config
 
 # 发现打印机
 python scripts/auto_print.py discover
 
 # 添加任务
-python scripts/auto_print.py add ./model.stl [--name NAME] [--priority N]
+python scripts/auto_print.py add ./model.stl --name demo --priority 1
 
 # 查看队列
 python scripts/auto_print.py list
@@ -204,13 +201,13 @@ python scripts/auto_print.py resume
 python scripts/auto_print.py stop
 
 # 监控进度
-python scripts/auto_print.py watch [--interval SEC]
+python scripts/auto_print.py watch --interval 3
 
 # 历史和清理
-python scripts/auto_print.py history [--limit N]
-python scripts/auto_print.py remove <job_id>
-python scripts/auto_print.py cancel <job_id>
-python scripts/auto_print.py clear [--force]
+python scripts/auto_print.py history --limit 20
+python scripts/auto_print.py remove JOB_ID
+python scripts/auto_print.py cancel JOB_ID
+python scripts/auto_print.py clear --force
 ```
 
 ## 工作原理

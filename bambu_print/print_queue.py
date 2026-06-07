@@ -78,9 +78,9 @@ class PrintQueue:
 
     示例:
         queue = PrintQueue(
-            printer_host="192.168.1.100",
-            access_code="xxx",
-            serial="SNXXX"
+            printer_host="YOUR_PRINTER_IP",
+            access_code="YOUR_ACCESS_CODE",
+            serial="YOUR_PRINTER_SERIAL"
         )
 
         # 添加任务
