@@ -13,7 +13,7 @@
     python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
 
     # 添加打印任务
-    python scripts/auto_print.py add ./model.3mf --name "我的模型"
+    python scripts/auto_print.py add ./plate.gcode --name "我的模型"
 
     # 查看队列
     python scripts/auto_print.py list
@@ -407,7 +407,7 @@ def main():
   python scripts/auto_print.py check-config
 
   # 添加打印任务
-  python scripts/auto_print.py add ./model.3mf
+  python scripts/auto_print.py add ./bambu_project.3mf
   python scripts/auto_print.py add ./robot.gcode --name my_robot --priority 5
 
   # 管理队列

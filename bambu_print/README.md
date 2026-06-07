@@ -43,7 +43,7 @@ python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_AC
 python scripts/auto_print.py check-config
 
 # 添加打印任务
-python scripts/auto_print.py add ./model.3mf --name "我的模型"
+python scripts/auto_print.py add ./plate.gcode --name "我的模型"
 
 # 启动打印
 python scripts/auto_print.py start
@@ -65,7 +65,7 @@ queue = PrintQueue(
 )
 
 # 添加任务
-queue.add("./model.3mf", name="我的模型")
+queue.add("./bambu_project.3mf", name="我的模型")
 
 # 注册回调
 def on_complete(job):
@@ -158,7 +158,7 @@ queue = PrintQueue(
 #### 任务对象
 
 ```python
-job = queue.add("./model.3mf", name="我的模型", priority=5)
+job = queue.add("./bambu_project.3mf", name="我的模型", priority=5)
 # job.id: str       # 任务ID
 # job.name: str      # 任务名称
 # job.status: str    # queued, printing, completed, failed
@@ -186,7 +186,7 @@ python scripts/auto_print.py check-config
 python scripts/auto_print.py discover
 
 # 添加任务
-python scripts/auto_print.py add ./model.3mf --name demo --priority 1
+python scripts/auto_print.py add ./plate.gcode --name demo --priority 1
 
 # 查看队列
 python scripts/auto_print.py list
@@ -232,7 +232,7 @@ python scripts/auto_print.py clear --force
 
 ```python
 # 开始打印
-{"print": {"command": "project_file", "param": "model.3mf", ...}}
+{"print": {"command": "project_file", "param": "bambu_project.3mf", ...}}
 
 # 暂停
 {"pause": {"command": "pause"}}

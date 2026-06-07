@@ -79,9 +79,9 @@ copy config\printer.json.example config\printer.json
 
 ```json
 {
-  "host": "192.168.1.100",
+  "host": "YOUR_PRINTER_IP",
   "access_code": "YOUR_ACCESS_CODE",
-  "serial": "SNXXX",
+  "serial": "YOUR_PRINTER_SERIAL",
   "method": "mqtt"
 }
 ```
@@ -89,7 +89,7 @@ copy config\printer.json.example config\printer.json
 也可以用 CLI 写入:
 
 ```powershell
-python scripts/auto_print.py config --host 192.168.1.100 --access-code YOUR_CODE --serial SNXXX
+python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
 ```
 
 `config/printer.json` 包含本地设备信息，不能提交到 Git。
@@ -99,7 +99,7 @@ python scripts/auto_print.py config --host 192.168.1.100 --access-code YOUR_CODE
 添加任务只会入队，不会自动连接或启动打印机:
 
 ```powershell
-python scripts/auto_print.py add models/converted/demo.3mf --name demo
+python scripts/auto_print.py add path\to\plate.gcode --name demo
 python scripts/auto_print.py list
 ```
 

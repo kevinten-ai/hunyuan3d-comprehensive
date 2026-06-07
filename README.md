@@ -149,7 +149,7 @@ python scripts/auto_print.py check-config
 
 ```powershell
 python scripts/auto_print.py discover
-python scripts/auto_print.py add models/converted/demo.3mf --name demo
+python scripts/auto_print.py add path\to\plate.gcode --name demo
 python scripts/auto_print.py list
 python scripts/auto_print.py start
 python scripts/auto_print.py status

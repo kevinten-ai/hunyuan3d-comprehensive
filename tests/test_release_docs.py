@@ -81,7 +81,7 @@ class ReleaseDocsTests(unittest.TestCase):
         for key, expected_value in expected_placeholders.items():
             self.assertEqual(template[key], expected_value)
 
-        for relative_path in ["README.md", "docs/HANDOFF.md"]:
+        for relative_path in ["README.md", "PRINT_WORKFLOW.md", "docs/HANDOFF.md"]:
             with self.subTest(path=relative_path):
                 content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
                 for expected_value in expected_placeholders.values():
@@ -136,20 +136,31 @@ class ReleaseDocsTests(unittest.TestCase):
 
     def test_auto_print_examples_use_ready_to_print_files(self):
         source_model_extensions = (".stl", ".obj", ".amf", ".gltf", ".glb")
+        ambiguous_or_slicer_input_examples = (
+            "models/converted",
+            "./model.3mf",
+            r"path\to\model.3mf",
+        )
 
         for relative_path in [
             "README.md",
             "PRINT_WORKFLOW.md",
             "bambu_print/README.md",
+            "docs/HANDOFF.md",
+            "scripts/ai_to_print.py",
             "scripts/auto_print.py",
         ]:
             with self.subTest(path=relative_path):
                 content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
-                add_examples = re.findall(r"auto_print\.py add[^\r\n]*", content)
+                add_examples = re.findall(r"(?:auto_print|ai_to_print)\.py add[^\r\n]*", content)
                 bad_examples = [
                     example for example in add_examples
                     if any(ext in example for ext in source_model_extensions)
                 ]
+                bad_examples.extend(
+                    example for example in add_examples
+                    if any(fragment in example for fragment in ambiguous_or_slicer_input_examples)
+                )
 
                 self.assertEqual(bad_examples, [])
 

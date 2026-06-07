@@ -19,8 +19,8 @@
 
     # 连接并打印
     client.connect()
-    client.send_file("model.3mf")
-    client.start_print("model.3mf")
+    client.send_file("bambu_project.3mf")
+    client.start_print("bambu_project.3mf")
 """
 
 from .printer_client import BambuPrinterClient, ConnectionType, PrintJob, discover_printers

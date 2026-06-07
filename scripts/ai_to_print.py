@@ -12,7 +12,7 @@ AI生成 + 自动打印 完整工作流
     python scripts/ai_to_print.py image ./photo.jpg
 
     # 仅添加到打印队列
-    python scripts/ai_to_print.py add ./model.3mf --name "我的模型"
+    python scripts/ai_to_print.py add ./bambu_project.3mf --name "我的模型"
 
     # 仅生成模型，不打印
     python scripts/ai_to_print.py text "一只恐龙" --no-print
@@ -375,7 +375,7 @@ def main():
   python scripts/ai_to_print.py image ./photo.jpg
 
   # 仅添加到打印队列
-  python scripts/ai_to_print.py add ./model.3mf --name "我的模型"
+  python scripts/ai_to_print.py add ./bambu_project.3mf --name "我的模型"
 
   # 仅生成，不打印
   python scripts/ai_to_print.py text "一只恐龙" --no-print

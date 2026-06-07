@@ -64,7 +64,7 @@ python scripts/auto_print.py check-config
 Queueing a model does not automatically start printing:
 
 ```powershell
-python scripts/auto_print.py add path\to\model.3mf --name "test print"
+python scripts/auto_print.py add path\to\plate.gcode --name "test print"
 python scripts/auto_print.py start
 python scripts/auto_print.py status
 python scripts/auto_print.py watch

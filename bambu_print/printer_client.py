@@ -69,8 +69,8 @@ class BambuPrinterClient:
             serial="YOUR_PRINTER_SERIAL"
         )
         client.connect()
-        client.send_file("model.3mf")
-        client.start_print("model.3mf")
+        client.send_file("bambu_project.3mf")
+        client.start_print("bambu_project.3mf")
     """
 
     # MQTT配置

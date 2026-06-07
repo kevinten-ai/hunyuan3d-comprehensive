@@ -103,7 +103,7 @@ class PrintQueue:
         )
 
         # 添加任务
-        queue.add("model.3mf", name="我的模型")
+        queue.add("bambu_project.3mf", name="我的模型")
 
         # 启动队列
         queue.start()
