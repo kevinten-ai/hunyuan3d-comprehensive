@@ -366,20 +366,26 @@ class PrintQueue:
             return True
         return False
 
-    def stop(self):
+    def stop(self) -> bool:
         """停止队列"""
-        self._stop_event.set()
         if self.current_job:
-            self.printer.stop_print()
+            if not self.printer.stop_print():
+                print("[队列] 停止打印失败")
+                return False
+        self._stop_event.set()
         self.status = QueueStatus.STOPPED
         print("[队列] 队列已停止")
+        return True
 
-    def clear(self):
+    def clear(self) -> bool:
         """清空队列"""
-        self.stop()
+        if not self.stop():
+            print("[队列] 清空队列失败")
+            return False
         self.queue.clear()
         self._save_queue()
         print("[队列] 队列已清空")
+        return True
 
     def _process_queue(self):
         """队列处理线程"""

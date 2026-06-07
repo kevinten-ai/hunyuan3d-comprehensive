@@ -8,10 +8,10 @@
   - `--mock` creates a tiny local STL for workflow tests and demos.
   - `--run-generator` is required before scripts call real Hunyuan3D generation.
   - root Hunyuan command failures return nonzero with ordinary error output.
-- Bambu queue `add` persists jobs without auto-connecting or starting the printer; upload failures mark jobs failed without sending a print-start command; current-job cancel/pause/resume state changes only proceed after the matching printer command succeeds.
+- Bambu queue `add` persists jobs without auto-connecting or starting the printer; upload failures mark jobs failed without sending a print-start command; current-job cancel/pause/resume/stop state changes only proceed after the matching printer command succeeds; `clear` does not discard queued work when stopping the active print fails.
 - Bambu client tests cover default status fields, MQTT report parsing, queue status serialization, HTTP upload success/failure return values, and local `project_file` command payload construction.
 - `model_converter.py` returns nonzero for local CLI input failures and reports missing files without tracebacks.
-- `auto_print.py` returns nonzero for local add/remove/cancel failure paths instead of reporting a false-success CLI exit.
+- `auto_print.py` returns nonzero for local add/remove/cancel/stop/clear failure paths instead of reporting a false-success CLI exit.
 - `ai_to_print.py` returns nonzero when generation does not produce a model, while `--mock --no-print` remains a local success path.
 - `continuous_print.py generate` returns nonzero for missing inputs or no-model generation and returns success for the local `--mock --no-print` path.
 - `generate_claude_crabs.py` returns success for `--list` and nonzero for missing Hunyuan3D-1 entrypoint or failed batch generation.

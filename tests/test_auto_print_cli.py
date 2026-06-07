@@ -48,10 +48,14 @@ class FakeQueue:
     def stop(self):
         if self.control_error:
             raise self.control_error
+        if self.control_result is not None:
+            return self.control_result
 
     def clear(self):
         if self.control_error:
             raise self.control_error
+        if self.control_result is not None:
+            return self.control_result
 
 
 class AutoPrintCliTests(unittest.TestCase):
@@ -154,6 +158,25 @@ class AutoPrintCliTests(unittest.TestCase):
                     "get_queue",
                     return_value=FakeQueue(control_result=False),
                 ), patch.object(sys, "argv", ["auto_print.py", command]), \
+                        patch("sys.stdout", new=stdout):
+                    self.assertEqual(auto_print.main(), 1)
+
+                self.assertIn("失败", stdout.getvalue())
+
+    def test_stop_clear_return_nonzero_when_queue_refuses_control(self):
+        cases = [
+            ("stop", ["auto_print.py", "stop"]),
+            ("clear", ["auto_print.py", "clear", "--force"]),
+        ]
+        for command, argv in cases:
+            with self.subTest(command=command):
+                stdout = StringIO()
+
+                with patch.object(
+                    auto_print,
+                    "get_queue",
+                    return_value=FakeQueue(control_result=False),
+                ), patch.object(sys, "argv", argv), \
                         patch("sys.stdout", new=stdout):
                     self.assertEqual(auto_print.main(), 1)
 

@@ -221,6 +221,67 @@ class PrintQueueTests(unittest.TestCase):
             self.assertEqual(queue.status, QueueStatus.PAUSED)
             self.assertTrue(queue._pause_event.is_set())
 
+    def test_stop_current_job_fails_when_printer_stop_fails(self):
+        with TemporaryDirectory() as tmp:
+            queue = self.make_queue(Path(tmp) / "queue")
+            queue.printer = FakePrinter(stop_print_result=False)
+            queue.status = QueueStatus.PRINTING
+            queue.current_job = QueuedJob(
+                id="job123",
+                filepath="model.3mf",
+                name="active print",
+                status="printing",
+            )
+
+            self.assertFalse(queue.stop())
+
+            self.assertTrue(queue.printer.stop_print_called)
+            self.assertEqual(queue.status, QueueStatus.PRINTING)
+            self.assertFalse(queue._stop_event.is_set())
+
+    def test_stop_current_job_succeeds_after_printer_stop(self):
+        with TemporaryDirectory() as tmp:
+            queue = self.make_queue(Path(tmp) / "queue")
+            queue.printer = FakePrinter(stop_print_result=True)
+            queue.status = QueueStatus.PRINTING
+            queue.current_job = QueuedJob(
+                id="job123",
+                filepath="model.3mf",
+                name="active print",
+                status="printing",
+            )
+
+            self.assertTrue(queue.stop())
+
+            self.assertTrue(queue.printer.stop_print_called)
+            self.assertEqual(queue.status, QueueStatus.STOPPED)
+            self.assertTrue(queue._stop_event.is_set())
+
+    def test_clear_does_not_clear_when_stop_fails(self):
+        with TemporaryDirectory() as tmp:
+            queue = self.make_queue(Path(tmp) / "queue")
+            queue.printer = FakePrinter(stop_print_result=False)
+            queue.status = QueueStatus.PRINTING
+            queue.current_job = QueuedJob(
+                id="job123",
+                filepath="model.3mf",
+                name="active print",
+                status="printing",
+            )
+            queued_job = QueuedJob(
+                id="job456",
+                filepath="queued.3mf",
+                name="queued print",
+                status="queued",
+            )
+            queue.queue.append(queued_job)
+
+            self.assertFalse(queue.clear())
+
+            self.assertTrue(queue.printer.stop_print_called)
+            self.assertEqual(queue.status, QueueStatus.PRINTING)
+            self.assertEqual(queue.queue, [queued_job])
+
 
 if __name__ == "__main__":
     unittest.main()

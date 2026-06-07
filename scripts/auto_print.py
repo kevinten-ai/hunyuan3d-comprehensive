@@ -316,8 +316,11 @@ def cmd_stop(args):
     if queue is None:
         return 1
 
-    queue.stop()
+    if not queue.stop():
+        print("错误: 停止队列失败")
+        return 1
     print("队列已停止")
+    return 0
 
 
 def cmd_clear(args):
@@ -327,8 +330,12 @@ def cmd_clear(args):
         return 1
 
     if args.force or input("确认清空队列? (y/N): ").lower() == 'y':
-        queue.clear()
+        if not queue.clear():
+            print("错误: 清空队列失败")
+            return 1
         print("队列已清空")
+        return 0
+    return 0
 
 
 def cmd_remove(args):
