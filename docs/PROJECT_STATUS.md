@@ -32,7 +32,9 @@ Some local directories are useful runtime assets but should stay out of Git:
 - `ComfyUI/`
 - `Hunyuan3D-1/venv/`
 - `outputs/text_*/`, `outputs/img_*/`, `outputs/continuous/`
+- `models/collection/`
 - `models/converted/`
+- `.continuous_*.json`
 - `.env`
 - `config/printer.json`
 

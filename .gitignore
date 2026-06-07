@@ -30,6 +30,7 @@ outputs/continuous/
 models/ready-to-print/
 models/slicer-input/
 models/converted/
+models/collection/
 Hunyuan3D-2/assets/*.glb
 
 # Python
@@ -40,6 +41,7 @@ __pycache__/
 
 # 日志、运行状态和本地密钥
 *.log
+.continuous_*.json
 .env
 .env.*
 config/printer.json

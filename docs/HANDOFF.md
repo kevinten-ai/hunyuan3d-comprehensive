@@ -94,5 +94,5 @@ See `docs/VERIFICATION.md` for the detailed command list and expected nonzero lo
 - Hunyuan3D-2 has passed a low-step local validation, but full-quality settings still need broader runtime and output-quality validation.
 - ComfyUI quick test and browser launch have passed, but example workflow execution still needs model/input asset alignment.
 - Bambu Lab MQTT connection confirmation failure/timeout paths are covered locally, but upload/start/pause/resume/stop still require a real printer, valid `config/printer.json`, local network access, and protocol validation.
-- Generated outputs, queue state, model weights, virtual environments, `.env`, and `config/printer.json` should remain untracked.
+- Generated outputs, local model-library copies, continuous-print state files, queue state, model weights, virtual environments, `.env`, and `config/printer.json` should remain untracked.
 - Repository hygiene tests verify that common large model artifacts such as `.safetensors`, `.ckpt`, `.bin`, `.onnx`, generated GLB/3MF outputs, local ComfyUI assets, printer config, and `.env` remain ignored while tracked templates stay visible.
