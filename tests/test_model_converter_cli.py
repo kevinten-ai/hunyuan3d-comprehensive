@@ -9,6 +9,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 class ModelConverterCliTests(unittest.TestCase):
+    def run_cli(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(PROJECT_ROOT / "scripts" / "model_converter.py"), *args],
+            cwd=str(PROJECT_ROOT),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
     def test_info_output_formats_volume_without_template_text(self):
         with TemporaryDirectory() as tmp:
             model = Path(tmp) / "model.stl"
@@ -36,6 +45,25 @@ class ModelConverterCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("体积:", result.stdout)
             self.assertNotIn("if info", result.stdout)
+
+    def test_unknown_command_returns_nonzero(self):
+        result = self.run_cli("unknown")
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("未知命令", result.stdout)
+
+    def test_convert_without_required_args_returns_nonzero(self):
+        result = self.run_cli("convert")
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("输入文件", result.stdout)
+
+    def test_missing_input_returns_nonzero_without_traceback(self):
+        result = self.run_cli("info", "definitely-missing.stl")
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("错误", result.stdout)
+        self.assertNotIn("Traceback", result.stderr)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@
   - `--run-generator` is required before scripts call real Hunyuan3D generation.
 - Bambu queue `add` persists jobs without auto-connecting or starting the printer.
 - Bambu client tests cover default status fields, MQTT report parsing, queue status serialization, and local `project_file` command payload construction.
+- `model_converter.py` returns nonzero for local CLI input failures and reports missing files without tracebacks.
 - `auto_print.py` returns nonzero for local add/remove/cancel failure paths instead of reporting a false-success CLI exit.
 - `auto_print.py config` rejects template printer values before writing local config.
 - AI-to-print and continuous-print entry points reuse the printer config preflight, so template `printer.json` values do not trigger queue creation.

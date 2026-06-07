@@ -176,6 +176,8 @@ python scripts/model_converter.py convert outputs/validation/hunyuan2_image/vali
 python scripts/glb_to_3mf.py outputs/validation/hunyuan2_image/validation.glb models/converted/validation_hunyuan2.3mf
 ```
 
+`model_converter.py` 对未知命令、缺少参数和不存在的输入文件会返回非 0，并输出普通错误信息。
+
 添加到模型库:
 
 ```powershell

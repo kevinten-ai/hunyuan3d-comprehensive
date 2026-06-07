@@ -169,7 +169,7 @@ def main():
     if not TRIMESH_AVAILABLE:
         print("错误: 请先安装 trimesh")
         print("  pip install trimesh")
-        return
+        return 1
 
     converter = ModelConverter()
 
@@ -187,29 +187,43 @@ def main():
   python model_converter.py repair ./output/model.stl
   python model_converter.py info model.stl
         """)
-        return
+        return 0
 
     cmd = sys.argv[1].lower()
 
     if cmd == 'convert':
         if len(sys.argv) < 4:
             print("错误: 请提供输入文件和输出格式")
-            return
-        converter.convert(sys.argv[2], sys.argv[3],
-                          sys.argv[4] if len(sys.argv) > 4 else None)
+            return 1
+        try:
+            converter.convert(sys.argv[2], sys.argv[3],
+                              sys.argv[4] if len(sys.argv) > 4 else None)
+        except (FileNotFoundError, ValueError, RuntimeError) as e:
+            print(f"错误: {e}")
+            return 1
+        return 0
 
     elif cmd == 'repair':
         if len(sys.argv) < 3:
             print("错误: 请提供输入文件")
-            return
-        converter.repair_mesh(sys.argv[2],
-                              sys.argv[3] if len(sys.argv) > 3 else None)
+            return 1
+        try:
+            converter.repair_mesh(sys.argv[2],
+                                  sys.argv[3] if len(sys.argv) > 3 else None)
+        except (FileNotFoundError, ValueError, RuntimeError) as e:
+            print(f"错误: {e}")
+            return 1
+        return 0
 
     elif cmd == 'info':
         if len(sys.argv) < 3:
             print("错误: 请提供文件路径")
-            return
-        info = converter.get_info(sys.argv[2])
+            return 1
+        try:
+            info = converter.get_info(sys.argv[2])
+        except (FileNotFoundError, ValueError, RuntimeError) as e:
+            print(f"错误: {e}")
+            return 1
         volume_text = f"{info['volume']:.2f} cm^3" if info['volume'] else "N/A"
         print(f"""
 模型信息:
@@ -222,9 +236,12 @@ def main():
 封闭性: {'YES' if info['is_watertight'] else 'NO (可能需要修复)'}
         """)
 
+        return 0
+
     else:
         print(f"未知命令: {cmd}")
+        return 1
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
