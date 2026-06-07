@@ -1,5 +1,7 @@
 import sys
 import json
+import zipfile
+import subprocess
 import unittest
 from io import StringIO
 from pathlib import Path
@@ -8,8 +10,15 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts import continuous_print
+from scripts import ai_to_print, continuous_print
 from scripts.continuous_print import ContinuousPrinter
+
+
+def write_bambu_project_3mf(path: Path):
+    with zipfile.ZipFile(path, "w") as package:
+        package.writestr("3D/3dmodel.model", "<model />")
+        package.writestr("Metadata/project_settings.config", "{}")
+        package.writestr("Metadata/slice_info.config", "<config />")
 
 
 class ContinuousPrintTests(unittest.TestCase):
@@ -84,6 +93,41 @@ class ContinuousPrintTests(unittest.TestCase):
 
             self.assertIsNone(result)
             self.assertIsNone(printer.print_queue.added_path)
+
+    def test_add_to_print_queue_uses_configured_external_slicer(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "model.stl"
+            source.write_text("solid mock\nendsolid mock\n", encoding="ascii")
+            commands = []
+
+            class FakeQueue:
+                def __init__(self):
+                    self.added_path = None
+
+                def add(self, path, name=None):
+                    self.added_path = path
+                    return "job-1"
+
+            def fake_run(command, **kwargs):
+                commands.append((command, kwargs))
+                output = Path(command.rsplit(" ", 1)[-1])
+                write_bambu_project_3mf(output)
+                return subprocess.CompletedProcess(command, 0)
+
+            with patch.object(continuous_print, "PROJECT_ROOT", root):
+                printer = ContinuousPrinter(output_dir=tmp, auto_start=False)
+            printer.print_queue = FakeQueue()
+
+            with patch.dict(ai_to_print.os.environ, {"BAMBU_SLICER_COMMAND": "fake-slicer {input} {output}"}), \
+                    patch.object(ai_to_print.subprocess, "run", side_effect=fake_run):
+                result = printer.add_to_print_queue(str(source), name="demo")
+
+            self.assertEqual(result, "job-1")
+            self.assertTrue(commands)
+            self.assertIn(str(source), commands[0][0])
+            self.assertEqual(commands[0][1]["shell"], True)
+            self.assertTrue(str(printer.print_queue.added_path).endswith("_sliced.3mf"))
 
     def test_main_returns_nonzero_without_prompt_or_image(self):
         stdout = StringIO()
