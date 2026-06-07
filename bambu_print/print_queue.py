@@ -313,7 +313,9 @@ class PrintQueue:
             是否成功取消
         """
         if self.current_job and self.current_job.id == job_id:
-            self.printer.stop_print()
+            if not self.printer.stop_print():
+                print(f"[队列] 取消任务失败: {job_id}")
+                return False
             self.current_job.status = "cancelled"
             self._add_to_history(self.current_job)
             self.current_job = None

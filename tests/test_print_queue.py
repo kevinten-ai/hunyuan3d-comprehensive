@@ -6,12 +6,16 @@ from tempfile import TemporaryDirectory
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from bambu_print import PrintQueue, QueueStatus
+from bambu_print.print_queue import QueuedJob
 
 
 class FakePrinter:
-    def __init__(self, send_file_result: bool):
+    def __init__(self, send_file_result: bool = True,
+                 stop_print_result: bool = True):
         self.send_file_result = send_file_result
+        self.stop_print_result = stop_print_result
         self.start_print_called = False
+        self.stop_print_called = False
         self.disconnected = False
 
     def connect(self):
@@ -26,6 +30,10 @@ class FakePrinter:
     def start_print(self, *_args, **_kwargs):
         self.start_print_called = True
         return True
+
+    def stop_print(self):
+        self.stop_print_called = True
+        return self.stop_print_result
 
     def get_status(self):
         raise AssertionError("get_status should not run when upload fails")
@@ -120,6 +128,47 @@ class PrintQueueTests(unittest.TestCase):
             self.assertEqual(len(history), 1)
             self.assertEqual(history[0]["status"], "failed")
             self.assertIn("文件", history[0]["error_message"])
+
+    def test_cancel_current_job_fails_when_printer_stop_fails(self):
+        with TemporaryDirectory() as tmp:
+            queue = self.make_queue(Path(tmp) / "queue")
+            queue.printer = FakePrinter(stop_print_result=False)
+            job = QueuedJob(
+                id="job123",
+                filepath="model.3mf",
+                name="active print",
+                status="printing",
+            )
+            queue.current_job = job
+
+            self.assertFalse(queue.cancel("job123"))
+
+            self.assertTrue(queue.printer.stop_print_called)
+            self.assertIs(queue.current_job, job)
+            self.assertEqual(job.status, "printing")
+            self.assertEqual(queue.get_history(), [])
+
+    def test_cancel_current_job_records_history_after_printer_stop(self):
+        with TemporaryDirectory() as tmp:
+            queue = self.make_queue(Path(tmp) / "queue")
+            queue.printer = FakePrinter(stop_print_result=True)
+            job = QueuedJob(
+                id="job123",
+                filepath="model.3mf",
+                name="active print",
+                status="printing",
+            )
+            queue.current_job = job
+
+            self.assertTrue(queue.cancel("job123"))
+
+            self.assertTrue(queue.printer.stop_print_called)
+            self.assertIsNone(queue.current_job)
+            self.assertEqual(job.status, "cancelled")
+
+            history = queue.get_history()
+            self.assertEqual(len(history), 1)
+            self.assertEqual(history[0]["status"], "cancelled")
 
 
 if __name__ == "__main__":
