@@ -400,7 +400,7 @@ def main():
     text_parser.add_argument('--output', '-o', help='输出目录')
     text_parser.add_argument('--no-print', action='store_true', help='仅生成，不打印')
     text_parser.add_argument('--name', help='打印任务名称')
-    text_parser.add_argument('--mock', action='store_true', help='演示模式：不调用模型，只返回预期模型路径')
+    text_parser.add_argument('--mock', action='store_true', help='演示模式：不调用模型，创建最小 STL')
     text_parser.add_argument('--run-generator', action='store_true', help='调用真实 Hunyuan3D-1 生成命令')
     text_parser.add_argument('--lite', action='store_true', help='使用 Hunyuan3D-1 Lite 模式')
 
@@ -412,7 +412,7 @@ def main():
                              default='standard', help='质量级别')
     image_parser.add_argument('--no-print', action='store_true', help='仅生成，不打印')
     image_parser.add_argument('--name', help='打印任务名称')
-    image_parser.add_argument('--mock', action='store_true', help='演示模式：不调用模型，只返回预期模型路径')
+    image_parser.add_argument('--mock', action='store_true', help='演示模式：不调用模型，创建最小 STL')
     image_parser.add_argument('--run-generator', action='store_true', help='调用真实 Hunyuan3D-2 生成命令')
 
     # add - 添加到队列

@@ -35,6 +35,24 @@ class AiToPrintTests(unittest.TestCase):
         self.assertIn("--run-generator", result.stdout)
         self.assertNotIn('python scripts/ai_to_print.py text "一只可爱的兔子"\n', result.stdout)
 
+    def test_mock_help_matches_created_stl_behavior(self):
+        script = Path(__file__).resolve().parents[1] / "scripts" / "ai_to_print.py"
+
+        for subcommand, required_arg in [("text", "prompt"), ("image", "image")]:
+            with self.subTest(subcommand=subcommand):
+                result = subprocess.run(
+                    [sys.executable, str(script), subcommand, "--help"],
+                    cwd=str(Path(__file__).resolve().parents[1]),
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(required_arg, result.stdout)
+                self.assertIn("创建最小 STL", result.stdout)
+                self.assertNotIn("只返回预期模型路径", result.stdout)
+
     def test_text_generation_requires_mock_mode_for_placeholder(self):
         with TemporaryDirectory() as tmp:
             result = ai_to_print.generate_text_to_3d("a rabbit", output_dir=tmp, mock=False)
