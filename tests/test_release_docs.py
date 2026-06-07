@@ -199,6 +199,28 @@ class ReleaseDocsTests(unittest.TestCase):
 
                 self.assertEqual(found, [])
 
+    def test_models_readme_documents_current_slicer_input_boundary(self):
+        content = (PROJECT_ROOT / "models" / "README.md").read_text(encoding="utf-8")
+
+        for expected in [
+            "models/collection/",
+            "models/slicer-input/",
+            "models/converted/",
+            "Bambu Studio",
+            "OrcaSlicer",
+            "ready-to-print",
+            ".gcode",
+            ".bgcode",
+        ]:
+            self.assertIn(expected, content)
+
+        for stale_claim in [
+            "ready-to-print/         # 可直接打印的模型",
+            "**STL**: 拓竹打印机原生支持",
+            "本目录用于存储和管理可打印的3D模型文件",
+        ]:
+            self.assertNotIn(stale_claim, content)
+
 
 if __name__ == "__main__":
     unittest.main()
