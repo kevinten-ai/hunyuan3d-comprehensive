@@ -22,7 +22,7 @@ copy config\printer.json.example config\printer.json
 
 `requirements-print.txt` covers the root printer, queue, conversion, and repair helpers (`paho-mqtt`, `requests`, `numpy`, `trimesh`, and `numpy-stl`). Hunyuan3D-1 and Hunyuan3D-2 keep their upstream dependency instructions in their own folders.
 
-Edit `.env` only for local overrides such as `HUNYUAN3D1_PYTHON`, `HUNYUAN3D2_MODEL_PATH`, and `MODEL_COLLECTOR_MODELS_DIR`. The tracked template is `config/env.example`. Do not commit `.env`.
+Edit `.env` only for local overrides such as `HUNYUAN3D1_PYTHON`, `HUNYUAN3D2_MODEL_PATH`, and `MODEL_COLLECTOR_MODELS_DIR`. Root orchestration scripts auto-load `.env` from the repository root without overriding variables already set in the shell. The tracked template is `config/env.example`. Do not commit `.env`.
 
 `BAMBU_SLICER_COMMAND` is optional and should stay unset until a local slicer command has been verified. It supports `{input}`, `{output}`, and `{output_dir}` placeholders. `BAMBU_SLICER_OUTPUT_EXT` must be a ready-to-print output extension; unsafe values are rejected before slicer execution. AI-to-print and continuous-print only continue queueing if that command produces a validated Bambu/OrcaSlicer project `.3mf`, `.gcode`, or `.bgcode`.
 

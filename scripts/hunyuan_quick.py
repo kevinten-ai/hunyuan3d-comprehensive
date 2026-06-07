@@ -15,6 +15,11 @@ from typing import Optional
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from scripts.local_env import load_project_env
+
+
+load_project_env(PROJECT_ROOT)
+
 
 def _default_output(prefix: str) -> str:
     return str(PROJECT_ROOT / "outputs" / f'{prefix}_{datetime.now().strftime("%Y%m%d_%H%M%S")}')

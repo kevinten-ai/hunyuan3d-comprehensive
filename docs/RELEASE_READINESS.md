@@ -21,7 +21,7 @@
 - AI-to-print and continuous-print entry points reuse the printer config preflight, so template `printer.json` values do not trigger queue creation.
 - AI-to-print and continuous-print entry points do not treat generated STL/OBJ/GLB or generic geometry 3MF as printer-ready files.
 - `model_collector.py` supports isolated model-library roots through `MODEL_COLLECTOR_MODELS_DIR` and returns nonzero for local CLI input failures.
-- `config/env.example` documents optional local environment overrides, and `.env` files are ignored.
+- `config/env.example` documents optional local environment overrides; root orchestration scripts auto-load repository-root `.env` files without overriding shell variables, and `.env` files are ignored.
 - Repository hygiene tests cover local-only runtime/model artifacts, tracked templates, and a 100 MB tracked-file threshold.
 - Requirements tests cover the root print/conversion dependency list.
 - Local tests cover root command construction, mock generation, continuous generation safety, model converter output, model collection CLI gates, Bambu exports, and queue persistence.

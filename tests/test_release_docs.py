@@ -92,9 +92,25 @@ class ReleaseDocsTests(unittest.TestCase):
 
         self.assertIn("BAMBU_SLICER_COMMAND", content)
         self.assertIn("BAMBU_SLICER_OUTPUT_EXT", content)
+        self.assertIn("auto-load .env", content)
         self.assertIn("{input}", content)
         self.assertIn("{output}", content)
         self.assertIn("{output_dir}", content)
+        self.assertNotRegex(content, r"<[^>\r\n]+>")
+
+    def test_release_docs_explain_local_env_auto_loading(self):
+        for relative_path in [
+            "README.md",
+            "docs/HANDOFF.md",
+            "docs/PROJECT_STATUS.md",
+            "docs/RELEASE_READINESS.md",
+            "docs/VERIFICATION.md",
+        ]:
+            with self.subTest(path=relative_path):
+                content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+
+                self.assertIn(".env", content)
+                self.assertTrue("auto-load" in content or "自动加载" in content)
 
     def test_release_docs_cover_slicer_output_extension_validation(self):
         for relative_path in [

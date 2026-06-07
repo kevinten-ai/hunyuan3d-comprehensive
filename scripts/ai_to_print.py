@@ -31,6 +31,11 @@ from datetime import datetime
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from scripts.local_env import load_project_env
+
+
+load_project_env(PROJECT_ROOT)
+
 PRINT_READY_EXTENSIONS = ('.3mf', '.gcode', '.bgcode')
 SOURCE_MODEL_EXTENSIONS = ('.stl', '.obj', '.ply', '.glb', '.gltf')
 SLICER_COMMAND_ENV = "BAMBU_SLICER_COMMAND"

@@ -71,7 +71,7 @@ These checks require hardware, model weights, or local services that cannot be p
   - `Hunyuan3D-1\venv\Scripts\python.exe -m pip check`
   - `Hunyuan3D-1\venv\Scripts\python.exe Hunyuan3D-1\main.py --help`
   - root text wrappers now prefer `HUNYUAN3D1_PYTHON`, then `Hunyuan3D-1/venv/Scripts/python.exe`, then the current interpreter.
-- Optional local environment variables are documented in `config/env.example`; `.env` and `.env.*` are ignored.
+- Optional local environment variables are documented in `config/env.example`; root orchestration scripts auto-load repository-root `.env` files without overriding shell variables, and `.env` / `.env.*` remain ignored.
 - Hunyuan3D-2 image wrapper defaults to `HUNYUAN3D2_MODEL_PATH` when `--model-path` is not supplied.
 - Hunyuan3D-1 real text-to-3D generation is still gated:
   - `Hunyuan3D-1/weights/hunyuanDiT` is missing locally;

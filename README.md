@@ -63,7 +63,7 @@ copy config\env.example .env
 - `HUNYUAN3D2_MODEL_PATH`: 指定 Hunyuan3D-2 本地模型快照或 Hugging Face repo；未传 `--model-path` 时由 `scripts/hunyuan2_image.py` 使用。
 - `MODEL_COLLECTOR_MODELS_DIR`: 指定 `scripts/model_collector.py` 使用的模型库根目录，便于把演示或测试集合放到仓库外。
 
-`.env` 只用于本地运行，不能提交到 Git。
+根目录脚本会自动加载仓库根目录的 `.env`，但不会覆盖 shell 中已经设置的同名变量。`.env` 只用于本地运行，不能提交到 Git。
 
 ## 生成模型
 

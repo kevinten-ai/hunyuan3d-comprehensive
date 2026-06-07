@@ -19,6 +19,13 @@ import json
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from scripts.local_env import load_project_env
+
+
+load_project_env(PROJECT_ROOT)
+
 MODELS_DIR = PROJECT_ROOT / "models"
 MODELS_RAW = MODELS_DIR / "raw"
 MODELS_SLICER_INPUT = MODELS_DIR / "slicer-input"
