@@ -130,7 +130,7 @@ copy config\printer.json.example config\printer.json
 {
   "host": "YOUR_PRINTER_IP",
   "access_code": "YOUR_ACCESS_CODE",
-  "serial": "SNXXX",
+  "serial": "YOUR_PRINTER_SERIAL",
   "method": "mqtt"
 }
 ```

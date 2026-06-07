@@ -1,5 +1,6 @@
-import unittest
 import re
+import json
+import unittest
 from pathlib import Path
 
 
@@ -64,6 +65,27 @@ class ReleaseDocsTests(unittest.TestCase):
                 ]
 
                 self.assertEqual(found, [])
+
+    def test_printer_template_uses_documented_placeholder_values(self):
+        template = json.loads(
+            (PROJECT_ROOT / "config" / "printer.json.example").read_text(
+                encoding="utf-8"
+            )
+        )
+        expected_placeholders = {
+            "host": "YOUR_PRINTER_IP",
+            "access_code": "YOUR_ACCESS_CODE",
+            "serial": "YOUR_PRINTER_SERIAL",
+        }
+
+        for key, expected_value in expected_placeholders.items():
+            self.assertEqual(template[key], expected_value)
+
+        for relative_path in ["README.md", "docs/HANDOFF.md"]:
+            with self.subTest(path=relative_path):
+                content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+                for expected_value in expected_placeholders.values():
+                    self.assertIn(expected_value, content)
 
 
 if __name__ == "__main__":
