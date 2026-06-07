@@ -9,26 +9,26 @@
 - 监控打印进度
 
 示例:
-    # 配置打印机
-    python auto_print.py config --host 192.168.1.100 --access-code xxx --serial SNXXX
+    # 从仓库根目录配置打印机
+    python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
 
     # 添加打印任务
-    python auto_print.py add ./model.stl --name "我的模型"
+    python scripts/auto_print.py add ./model.stl --name "我的模型"
 
     # 查看队列
-    python auto_print.py list
+    python scripts/auto_print.py list
 
     # 查看状态
-    python auto_print.py status
+    python scripts/auto_print.py status
 
     # 控制队列
-    python auto_print.py start
-    python auto_print.py pause
-    python auto_print.py resume
-    python auto_print.py stop
+    python scripts/auto_print.py start
+    python scripts/auto_print.py pause
+    python scripts/auto_print.py resume
+    python scripts/auto_print.py stop
 
     # 发现打印机
-    python auto_print.py discover
+    python scripts/auto_print.py discover
 """
 
 import sys
@@ -389,29 +389,29 @@ def main():
         epilog="""
 示例:
   # 首次使用需要配置打印机
-  python auto_print.py config --host 192.168.1.100 --access-code YOUR_CODE --serial SNXXX
-  python auto_print.py check-config
+  python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
+  python scripts/auto_print.py check-config
 
   # 添加打印任务
-  python auto_print.py add ./model.stl
-  python auto_print.py add ./robot.obj --name my_robot --priority 5
+  python scripts/auto_print.py add ./model.stl
+  python scripts/auto_print.py add ./robot.obj --name my_robot --priority 5
 
   # 管理队列
-  python auto_print.py list
-  python auto_print.py status
-  python auto_print.py start
-  python auto_print.py pause
-  python auto_print.py resume
-  python auto_print.py stop
+  python scripts/auto_print.py list
+  python scripts/auto_print.py status
+  python scripts/auto_print.py start
+  python scripts/auto_print.py pause
+  python scripts/auto_print.py resume
+  python scripts/auto_print.py stop
 
   # 监控进度
-  python auto_print.py watch
+  python scripts/auto_print.py watch
 
   # 查看历史
-  python auto_print.py history
+  python scripts/auto_print.py history
 
   # 发现打印机
-  python auto_print.py discover
+  python scripts/auto_print.py discover
         """
     )
     subparsers = parser.add_subparsers(dest='command', help='子命令')

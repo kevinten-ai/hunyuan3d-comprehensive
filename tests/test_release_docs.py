@@ -44,6 +44,27 @@ class ReleaseDocsTests(unittest.TestCase):
 
                 self.assertEqual(bad_blocks, [])
 
+    def test_release_text_does_not_contain_common_mojibake_fragments(self):
+        mojibake_fragments = [
+            "鎵",
+            "鍛",
+            "涓€",
+            "鈹",
+            "绋",
+            "锛",
+            "€?",
+        ]
+
+        for relative_path in ["README.md", "scripts/auto_print.py"]:
+            with self.subTest(path=relative_path):
+                content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+                found = [
+                    fragment for fragment in mojibake_fragments
+                    if fragment in content
+                ]
+
+                self.assertEqual(found, [])
+
 
 if __name__ == "__main__":
     unittest.main()

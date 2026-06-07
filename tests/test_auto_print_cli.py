@@ -27,6 +27,26 @@ class FakeQueue:
 
 
 class AutoPrintCliTests(unittest.TestCase):
+    def test_help_uses_repo_root_copy_safe_examples(self):
+        stdout = StringIO()
+
+        with patch.object(sys, "argv", ["auto_print.py", "--help"]), \
+                patch("sys.stdout", new=stdout):
+            with self.assertRaises(SystemExit) as exit_context:
+                auto_print.main()
+
+        self.assertEqual(exit_context.exception.code, 0)
+
+        output = stdout.getvalue()
+        self.assertIn(
+            "python scripts/auto_print.py config --host YOUR_PRINTER_IP "
+            "--access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL",
+            output,
+        )
+        self.assertNotIn("python auto_print.py config", output)
+        self.assertNotIn("YOUR_CODE", output)
+        self.assertNotIn("SNXXX", output)
+
     def test_add_returns_nonzero_without_traceback_when_queue_rejects_file(self):
         with TemporaryDirectory() as tmp:
             model = Path(tmp) / "model.stl"
