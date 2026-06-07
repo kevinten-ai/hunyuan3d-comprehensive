@@ -1,4 +1,5 @@
 import unittest
+import re
 from pathlib import Path
 
 
@@ -29,6 +30,19 @@ class ReleaseDocsTests(unittest.TestCase):
             "docs/RELEASE_READINESS.md",
         ]:
             self.assertIn(required_path, content)
+
+    def test_powershell_examples_do_not_use_angle_bracket_placeholders(self):
+        for relative_path in ["README.md", "docs/HANDOFF.md"]:
+            with self.subTest(path=relative_path):
+                content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+                code_blocks = re.findall(r"```powershell\n(.*?)```", content, flags=re.DOTALL)
+
+                bad_blocks = [
+                    block for block in code_blocks
+                    if re.search(r"<[^>\r\n]+>", block)
+                ]
+
+                self.assertEqual(bad_blocks, [])
 
 
 if __name__ == "__main__":

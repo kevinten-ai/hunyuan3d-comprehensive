@@ -44,6 +44,21 @@ class AutoPrintConfigTests(unittest.TestCase):
         self.assertTrue(errors)
         self.assertEqual(warnings, [])
 
+    def test_documented_command_placeholders_are_not_valid(self):
+        errors, warnings = validate_printer_config(
+            {
+                "host": "YOUR_PRINTER_IP",
+                "access_code": "YOUR_ACCESS_CODE",
+                "serial": "YOUR_PRINTER_SERIAL",
+                "method": "mqtt",
+            }
+        )
+
+        self.assertTrue(any("host" in error for error in errors))
+        self.assertTrue(any("access_code" in error for error in errors))
+        self.assertTrue(any("serial" in error for error in errors))
+        self.assertEqual(warnings, [])
+
     def test_valid_mqtt_config_passes(self):
         errors, warnings = validate_printer_config(
             {
@@ -72,10 +87,15 @@ class AutoPrintConfigTests(unittest.TestCase):
     def test_check_config_command_returns_nonzero_when_missing(self):
         with TemporaryDirectory() as tmp:
             missing_config = Path(tmp) / "printer.json"
+            stdout = StringIO()
             with patch.object(auto_print, "CONFIG_FILE", missing_config), \
                     patch.object(sys, "argv", ["auto_print.py", "check-config"]), \
-                    patch("sys.stdout", new=StringIO()):
+                    patch("sys.stdout", new=stdout):
                 self.assertEqual(auto_print.main(), 1)
+
+            output = stdout.getvalue()
+            self.assertIn("YOUR_PRINTER_IP", output)
+            self.assertNotIn("<ip>", output)
 
     def test_config_command_rejects_template_values_before_save(self):
         with TemporaryDirectory() as tmp:

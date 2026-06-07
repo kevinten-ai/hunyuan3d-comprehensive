@@ -138,7 +138,7 @@ copy config\printer.json.example config\printer.json
 配置也可以通过命令写入:
 
 ```powershell
-python scripts/auto_print.py config --host <printer-ip> --access-code <access-code> --serial <serial>
+python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
 python scripts/auto_print.py check-config
 ```
 

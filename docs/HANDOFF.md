@@ -55,7 +55,7 @@ python scripts/ai_to_print.py text "a rabbit" --run-generator --no-print
 Configure and validate the local printer config first:
 
 ```powershell
-python scripts/auto_print.py config --host <ip> --access-code <code> --serial <serial>
+python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
 python scripts/auto_print.py check-config
 ```
 

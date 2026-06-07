@@ -54,6 +54,7 @@ PLACEHOLDER_VALUES = {
     "YOUR_CODE",
     "SNXXX",
     "YOUR_SERIAL",
+    "YOUR_PRINTER_SERIAL",
 }
 
 
@@ -120,7 +121,10 @@ def print_config_validation(config: Optional[dict], show_success: bool = True) -
             print(f"  - {warning}")
 
     if errors:
-        print("请运行: python scripts/auto_print.py config --host <ip> --access-code <code> --serial <sn>")
+        print(
+            "请运行: python scripts/auto_print.py config --host YOUR_PRINTER_IP "
+            "--access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL"
+        )
         return False
     return True
 
