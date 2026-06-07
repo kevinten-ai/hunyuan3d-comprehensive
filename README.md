@@ -115,6 +115,7 @@ python scripts/ai_to_print.py image Hunyuan3D-2/assets/demo.png --run-generator 
 去掉 `--no-print` 后，脚本会尝试读取本地打印机配置并把模型加入打印队列。
 `ai_to_print.py` 和 `continuous_print.py` 会复用同一套本地配置检查；如果 `config/printer.json` 缺失或仍是模板占位值，请求打印的命令会返回非 0，避免把“只生成、未打印”误报为端到端成功。
 `continuous_print.py generate --no-print` 在没有生成模型时也会返回非 0；加 `--mock` 是本地连续生成演示成功路径。
+提示词列表的本地批量演示也需要显式跳过打印，例如 `python scripts/continuous_print.py prompts --file prompts.txt --delay 0 --mock --no-print`。
 生成得到的 STL/OBJ/GLB 或普通几何 3MF 不能直接进 Bambu 队列；要自动衔接打印，需要先配置并验证外部切片器命令 `BAMBU_SLICER_COMMAND`，让它输出 Bambu/OrcaSlicer 项目 `.3mf`、`.gcode` 或 `.bgcode`。`BAMBU_SLICER_OUTPUT_EXT` 只能设置为可验证的打印输出格式；不安全的 output extension 会在切片器执行前被 reject。
 
 ## Bambu Lab 打印机配置

@@ -15,7 +15,7 @@
 - `model_converter.py` returns nonzero for local CLI input failures and reports missing files without tracebacks.
 - `auto_print.py` returns nonzero for local add/remove/cancel/stop/clear failure paths instead of reporting a false-success CLI exit.
 - `ai_to_print.py` returns nonzero when generation does not produce a model, when print is requested without valid printer config, and when `ai_to_print.py discover` finds no printer locally; `--mock --no-print` remains a local success path.
-- `continuous_print.py generate` returns nonzero for missing inputs, no-model generation, or print requested without valid printer config; `continuous_print.py prompts` returns nonzero when the prompt file is missing or empty, when generation fails, or when a generated model cannot be queued, and the local `--mock --no-print` path remains successful.
+- `continuous_print.py generate` returns nonzero for missing inputs, no-model generation, or print requested without valid printer config; `continuous_print.py prompts` returns nonzero when the prompt file is missing or empty, when generation fails, or when a generated model cannot be queued, strips UTF-8 BOMs from prompt files, and the local `--mock --no-print` path remains successful.
 - `generate_claude_crabs.py` returns success for `--list` and nonzero for missing Hunyuan3D-1 entrypoint or failed batch generation.
 - `auto_print.py config` rejects host/access-code/serial template printer values before writing local config.
 - AI-to-print and continuous-print entry points reuse the printer config preflight, so template `printer.json` values do not trigger queue creation.
@@ -39,6 +39,7 @@ python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 python scripts/ai_to_print.py text "a rabbit" --mock
 python scripts/continuous_print.py generate --prompt "a rabbit" --no-print --mock
 python scripts/continuous_print.py generate --prompt "a rabbit" --mock
+python scripts/continuous_print.py prompts --file prompts.txt --delay 0 --mock --no-print
 python scripts/continuous_print.py prompts --file missing-prompts.txt --delay 0
 python scripts/model_converter.py info outputs/demo/demo.stl
 python scripts/model_converter.py info outputs/validation/hunyuan2_image/validation.glb

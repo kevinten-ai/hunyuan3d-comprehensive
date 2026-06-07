@@ -246,6 +246,50 @@ class ContinuousPrintTests(unittest.TestCase):
 
             self.assertFalse((root / ".continuous_prompts.json").exists())
 
+    def test_prompts_mock_no_print_returns_zero_and_marks_processed(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prompt_file = root / "prompts.txt"
+            prompt_file.write_text("a rabbit\n", encoding="utf-8")
+            argv = [
+                "continuous_print.py",
+                "prompts",
+                "--file",
+                str(prompt_file),
+                "--delay",
+                "0",
+                "--mock",
+                "--no-print",
+            ]
+
+            with patch.object(continuous_print, "PROJECT_ROOT", root), \
+                    patch.object(sys, "argv", argv):
+                self.assertEqual(continuous_print.main(), 0)
+
+            processed = json.loads((root / ".continuous_prompts.json").read_text())
+            self.assertEqual(processed, [0])
+
+    def test_prompts_strip_utf8_bom_from_first_prompt(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prompt_file = root / "prompts.txt"
+            prompt_file.write_text("\ufeffa rabbit\n", encoding="utf-8")
+            model_file = root / "model.stl"
+            model_file.write_text("solid mock\nendsolid mock\n", encoding="ascii")
+            prompts = []
+
+            def fake_generate(prompt):
+                prompts.append(prompt)
+                return str(model_file)
+
+            with patch.object(continuous_print, "PROJECT_ROOT", root):
+                printer = ContinuousPrinter(output_dir=tmp, auto_start=False)
+                with patch.object(printer, "generate_from_text", side_effect=fake_generate), \
+                        patch.object(printer, "repair_model", return_value=str(model_file)):
+                    self.assertTrue(printer.run_prompt_list(str(prompt_file), delay=0))
+
+            self.assertEqual(prompts, ["a rabbit"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -22,6 +22,8 @@ python scripts/hunyuan_quick.py text "a small robot" --dry-run
 python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --dry-run --quality lite
 python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 python scripts/continuous_print.py generate --prompt "a rabbit" --no-print --mock
+# Prompt-list local demo after creating a small prompts file:
+python scripts/continuous_print.py prompts --file prompts.txt --delay 0 --mock --no-print
 # Expected printer-config gate when print is requested without config:
 python scripts/ai_to_print.py text "a rabbit" --mock
 python scripts/continuous_print.py generate --prompt "a rabbit" --mock
@@ -56,7 +58,7 @@ The `auto_print.py config` and `auto_print.py check-config` commands validate th
 
 `scripts/ai_to_print.py` returns nonzero when generation does not produce a model, when print is requested without valid printer config, and when its printer discovery command finds no printer locally. `--mock --no-print` remains the local success demo path. Before automatic queueing, it rejects source model files and generic geometry 3MF with instructions to convert plus slice first.
 
-`scripts/continuous_print.py generate` returns nonzero when required inputs are missing, generation does not produce a model, or print is requested without valid printer config. `continuous_print.py prompts` returns nonzero when the prompt file is missing or empty, when a prompt does not generate a model, or when a generated model cannot be queued; failed prompts are not marked as processed. `--mock --no-print` remains the local success demo path. Before automatic queueing, it rejects source model files and generic geometry 3MF with instructions to convert plus slice first.
+`scripts/continuous_print.py generate` returns nonzero when required inputs are missing, generation does not produce a model, or print is requested without valid printer config; `--mock --no-print` remains the local single-generation success demo path. `continuous_print.py prompts` returns nonzero when the prompt file is missing or empty, when a prompt does not generate a model, or when a generated model cannot be queued; failed prompts are not marked as processed, UTF-8 BOMs are stripped from prompt files, and `--mock --no-print` is the local prompt-list demo path. Before automatic queueing, it rejects source model files and generic geometry 3MF with instructions to convert plus slice first.
 
 `BAMBU_SLICER_COMMAND` and `BAMBU_SLICER_OUTPUT_EXT` are optional local hooks for a verified external slicer. Tests cover command success/failure, reject an unsafe output extension before invoking the slicer, and still validate the generated output before queueing; real slicer syntax and output quality remain an external gate.
 

@@ -471,7 +471,7 @@ class ContinuousPrinter:
             logger.error(f"[提示词] 文件不存在: {prompt_file}")
             return False
 
-        prompts = [line.strip() for line in prompt_file.read_text(encoding='utf-8').splitlines()
+        prompts = [line.strip() for line in prompt_file.read_text(encoding='utf-8-sig').splitlines()
                    if line.strip() and not line.startswith('#')]
 
         logger.info(f"[提示词] 加载了 {len(prompts)} 个提示词")
@@ -506,6 +506,12 @@ class ContinuousPrinter:
 
             # 修复
             repaired = self.repair_model(model_path)
+            if not self.auto_start:
+                logger.info(f"[提示词] 模型已生成: {repaired}")
+                processed_idx.add(i)
+                processed_file.write_text(json.dumps(list(processed_idx)))
+                continue
+
             # 添加到队列
             job_id = self.add_to_print_queue(repaired, name=f"[AI] {prompt[:30]}")
             if not job_id:
@@ -611,6 +617,9 @@ def main():
   # 提示词列表模式
   python scripts/continuous_print.py prompts --file prompts.txt --delay 60
 
+  # 提示词列表本地演示: 生成 mock STL，不打印
+  python scripts/continuous_print.py prompts --file prompts.txt --delay 0 --mock --no-print
+
   # 查看状态
   python scripts/continuous_print.py status
 
@@ -647,6 +656,7 @@ def main():
     prompts_parser = subparsers.add_parser('prompts', help='提示词列表模式')
     prompts_parser.add_argument('--file', '-f', required=True, help='提示词文件')
     prompts_parser.add_argument('--delay', '-d', type=float, default=60, help='间隔时间(秒)')
+    prompts_parser.add_argument('--no-print', action='store_true', help='不打印')
     prompts_parser.add_argument('--mock', action='store_true', help='演示模式：创建最小 STL，不调用模型')
     prompts_parser.add_argument('--run-generator', action='store_true', help='调用真实 Hunyuan3D 生成命令')
 
@@ -689,6 +699,7 @@ def main():
         return 0
 
     elif args.command == 'prompts':
+        printer.auto_start = not args.no_print
         return 0 if printer.run_prompt_list(args.file, args.delay) else 1
 
     else:
