@@ -96,6 +96,19 @@ class ReleaseDocsTests(unittest.TestCase):
         self.assertIn("{output}", content)
         self.assertIn("{output_dir}", content)
 
+    def test_release_docs_cover_slicer_output_extension_validation(self):
+        for relative_path in [
+            "docs/PROJECT_STATUS.md",
+            "docs/RELEASE_READINESS.md",
+            "docs/VERIFICATION.md",
+        ]:
+            with self.subTest(path=relative_path):
+                content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+
+                self.assertIn("BAMBU_SLICER_OUTPUT_EXT", content)
+                self.assertIn("output extension", content)
+                self.assertIn("reject", content.lower())
+
     def test_bambu_package_examples_use_copy_safe_placeholders(self):
         old_example_values = [
             "192.168.1.100",
