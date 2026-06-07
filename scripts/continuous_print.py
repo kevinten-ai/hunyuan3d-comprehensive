@@ -475,6 +475,9 @@ class ContinuousPrinter:
                    if line.strip() and not line.startswith('#')]
 
         logger.info(f"[提示词] 加载了 {len(prompts)} 个提示词")
+        if not prompts:
+            logger.error(f"[提示词] 文件没有可处理的提示词: {prompt_file}")
+            return False
 
         # 已处理记录
         processed_file = PROJECT_ROOT / ".continuous_prompts.json"
@@ -484,6 +487,7 @@ class ContinuousPrinter:
             processed_idx = set()
 
         self.is_running = True
+        failed = False
         for i, prompt in enumerate(prompts):
             if not self.is_running:
                 break
@@ -495,15 +499,26 @@ class ContinuousPrinter:
 
             # 生成
             model_path = self.generate_from_text(prompt)
-            if model_path:
-                # 修复
-                repaired = self.repair_model(model_path)
-                # 添加到队列
-                self.add_to_print_queue(repaired, name=f"[AI] {prompt[:30]}")
+            if not model_path:
+                logger.warning(f"[提示词] 生成失败，未标记为已处理: {prompt}")
+                failed = True
+                continue
 
-                if self.auto_start:
-                    self.start_printing()
-                    self.wait_for_print_completion()
+            # 修复
+            repaired = self.repair_model(model_path)
+            # 添加到队列
+            job_id = self.add_to_print_queue(repaired, name=f"[AI] {prompt[:30]}")
+            if not job_id:
+                logger.warning(f"[提示词] 入队失败，未标记为已处理: {prompt}")
+                failed = True
+                continue
+
+            if self.auto_start:
+                self.start_printing()
+                if not self.wait_for_print_completion():
+                    logger.warning(f"[提示词] 打印等待失败，未标记为已处理: {prompt}")
+                    failed = True
+                    continue
 
             # 标记已处理
             processed_idx.add(i)
@@ -518,7 +533,7 @@ class ContinuousPrinter:
                     time.sleep(1)
 
         logger.info("[提示词] 所有提示词处理完成")
-        return True
+        return not failed
 
     def run_single(self, prompt: str = None, image: str = None) -> bool:
         """

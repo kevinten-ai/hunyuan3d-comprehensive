@@ -207,6 +207,45 @@ class ContinuousPrintTests(unittest.TestCase):
                     patch.object(sys, "argv", argv):
                 self.assertEqual(continuous_print.main(), 1)
 
+    def test_prompts_returns_nonzero_when_generation_fails(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prompt_file = root / "prompts.txt"
+            prompt_file.write_text("a rabbit\n", encoding="utf-8")
+            argv = ["continuous_print.py", "prompts", "--file", str(prompt_file), "--delay", "0"]
+
+            with patch.object(continuous_print, "PROJECT_ROOT", root), \
+                    patch.object(sys, "argv", argv):
+                self.assertEqual(continuous_print.main(), 1)
+
+            self.assertFalse((root / ".continuous_prompts.json").exists())
+
+    def test_prompts_returns_nonzero_when_prompt_file_has_no_prompts(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prompt_file = root / "prompts.txt"
+            prompt_file.write_text("# only comments\n\n", encoding="utf-8")
+            argv = ["continuous_print.py", "prompts", "--file", str(prompt_file), "--delay", "0"]
+
+            with patch.object(continuous_print, "PROJECT_ROOT", root), \
+                    patch.object(sys, "argv", argv):
+                self.assertEqual(continuous_print.main(), 1)
+
+            self.assertFalse((root / ".continuous_prompts.json").exists())
+
+    def test_prompts_returns_nonzero_when_print_requested_without_printer_config(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prompt_file = root / "prompts.txt"
+            prompt_file.write_text("a rabbit\n", encoding="utf-8")
+            argv = ["continuous_print.py", "prompts", "--file", str(prompt_file), "--delay", "0", "--mock"]
+
+            with patch.object(continuous_print, "PROJECT_ROOT", root), \
+                    patch.object(sys, "argv", argv):
+                self.assertEqual(continuous_print.main(), 1)
+
+            self.assertFalse((root / ".continuous_prompts.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
