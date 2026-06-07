@@ -24,6 +24,8 @@ python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 python scripts/continuous_print.py generate --prompt "a rabbit" --no-print --mock
 # Expected no-model gate unless --mock or --run-generator is supplied:
 python scripts/continuous_print.py generate --prompt "a rabbit" --no-print
+# Expected prompt-file gate when the file is missing:
+python scripts/continuous_print.py prompts --file missing-prompts.txt --delay 0
 python scripts/generate_claude_crabs.py --list
 python scripts/model_converter.py info outputs/demo/demo.stl
 python scripts/model_converter.py info outputs/validation/hunyuan2_image/validation.glb
@@ -51,7 +53,7 @@ The `auto_print.py config` and `auto_print.py check-config` commands validate th
 
 `scripts/ai_to_print.py` returns nonzero when generation does not produce a model, and its printer discovery command returns nonzero when no printer is found locally. `--mock --no-print` remains the local success demo path. Before automatic queueing, it rejects source model files and generic geometry 3MF with instructions to convert plus slice first.
 
-`scripts/continuous_print.py generate` returns nonzero when required inputs are missing or generation does not produce a model; `--mock --no-print` remains the local success demo path. Before automatic queueing, it rejects source model files and generic geometry 3MF with instructions to convert plus slice first.
+`scripts/continuous_print.py generate` returns nonzero when required inputs are missing or generation does not produce a model, and `continuous_print.py prompts` returns nonzero when the prompt file is missing; `--mock --no-print` remains the local success demo path. Before automatic queueing, it rejects source model files and generic geometry 3MF with instructions to convert plus slice first.
 
 `BAMBU_SLICER_COMMAND` and `BAMBU_SLICER_OUTPUT_EXT` are optional local hooks for a verified external slicer. Tests cover command success/failure, reject an unsafe output extension before invoking the slicer, and still validate the generated output before queueing; real slicer syntax and output quality remain an external gate.
 

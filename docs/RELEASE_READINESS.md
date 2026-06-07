@@ -15,7 +15,7 @@
 - `model_converter.py` returns nonzero for local CLI input failures and reports missing files without tracebacks.
 - `auto_print.py` returns nonzero for local add/remove/cancel/stop/clear failure paths instead of reporting a false-success CLI exit.
 - `ai_to_print.py` returns nonzero when generation does not produce a model, and `ai_to_print.py discover` returns nonzero when no printer is found locally; `--mock --no-print` remains a local success path.
-- `continuous_print.py generate` returns nonzero for missing inputs or no-model generation and returns success for the local `--mock --no-print` path.
+- `continuous_print.py generate` returns nonzero for missing inputs or no-model generation, `continuous_print.py prompts` returns nonzero when the prompt file is missing, and the local `--mock --no-print` path remains successful.
 - `generate_claude_crabs.py` returns success for `--list` and nonzero for missing Hunyuan3D-1 entrypoint or failed batch generation.
 - `auto_print.py config` rejects host/access-code/serial template printer values before writing local config.
 - AI-to-print and continuous-print entry points reuse the printer config preflight, so template `printer.json` values do not trigger queue creation.
@@ -37,6 +37,7 @@ python scripts/hunyuan_quick.py text "a small robot" --dry-run --lite
 python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --dry-run --quality lite
 python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 python scripts/continuous_print.py generate --prompt "a rabbit" --no-print --mock
+python scripts/continuous_print.py prompts --file missing-prompts.txt --delay 0
 python scripts/model_converter.py info outputs/demo/demo.stl
 python scripts/model_converter.py info outputs/validation/hunyuan2_image/validation.glb
 python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb stl validation_hunyuan2

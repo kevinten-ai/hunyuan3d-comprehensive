@@ -188,6 +188,16 @@ class ContinuousPrintTests(unittest.TestCase):
                     patch.object(sys, "argv", argv):
                 self.assertEqual(continuous_print.main(), 0)
 
+    def test_prompts_returns_nonzero_when_prompt_file_is_missing(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            missing_file = root / "missing-prompts.txt"
+            argv = ["continuous_print.py", "prompts", "--file", str(missing_file), "--delay", "0"]
+
+            with patch.object(continuous_print, "PROJECT_ROOT", root), \
+                    patch.object(sys, "argv", argv):
+                self.assertEqual(continuous_print.main(), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

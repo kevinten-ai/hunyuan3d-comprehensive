@@ -20,7 +20,7 @@
 | Bambu MQTT commands | Partially implemented | `bambu_print/printer_client.py`; local tests verify MQTT connection callback success/failure/timeout handling, status parsing, HTTP upload success/failure return values, empty-file start rejection, and `project_file` command payload construction | Protocol validation against a real Bambu printer |
 | Hunyuan command bridge | Implemented wrapper | `scripts/hunyuan_quick.py`, `scripts/hunyuan2_image.py`; dry-run and local failure return-code paths verified | Real generation requires weights/hardware |
 | Full AI-to-print | Explicit modes | `scripts/ai_to_print.py` uses `--mock` for demo and `--run-generator` for real commands; local success, no-model failure, and no-printer discovery return-code paths verified; printer config preflight rejects template config; source models are rejected before direct queueing unless a verified external `BAMBU_SLICER_COMMAND` produces validated ready output; invalid `BAMBU_SLICER_OUTPUT_EXT` output extension values are rejected before slicer execution | Real generator, slicer output, and printer validation |
-| Continuous generation and print | Explicit modes | `scripts/continuous_print.py` uses `--mock` for demo and `--run-generator` for real commands; local generate success and no-model failure return-code paths verified; printer config preflight rejects template config; source models are rejected before direct queueing unless a verified external `BAMBU_SLICER_COMMAND` produces validated ready output; invalid `BAMBU_SLICER_OUTPUT_EXT` output extension values are rejected before slicer execution | Real generator, slicer output, and printer validation |
+| Continuous generation and print | Explicit modes | `scripts/continuous_print.py` uses `--mock` for demo and `--run-generator` for real commands; local generate success, no-model failure, and missing prompt-file return-code paths verified; printer config preflight rejects template config; source models are rejected before direct queueing unless a verified external `BAMBU_SLICER_COMMAND` produces validated ready output; invalid `BAMBU_SLICER_OUTPUT_EXT` output extension values are rejected before slicer execution | Real generator, slicer output, and printer validation |
 | Claude crab batch prompts | Command builder verified | `scripts/generate_claude_crabs.py`; `--list` success and missing Hunyuan3D-1 entrypoint failure return-code paths verified | Real Hunyuan3D-1 generation requires weights/hardware |
 
 ## Important Boundaries
@@ -73,6 +73,7 @@ python scripts/hunyuan_quick.py text "a small robot" --dry-run --lite
 python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 python scripts/continuous_print.py generate --prompt "a rabbit" --no-print --mock
 python scripts/continuous_print.py generate --prompt "a rabbit" --no-print
+python scripts/continuous_print.py prompts --file missing-prompts.txt --delay 0
 python scripts/generate_claude_crabs.py --list
 python scripts/model_converter.py info outputs/demo/demo.stl
 python scripts/model_converter.py info outputs/validation/hunyuan2_image/validation.glb

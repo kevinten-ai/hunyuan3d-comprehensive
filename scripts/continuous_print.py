@@ -469,7 +469,7 @@ class ContinuousPrinter:
         prompt_file = Path(prompt_file)
         if not prompt_file.exists():
             logger.error(f"[提示词] 文件不存在: {prompt_file}")
-            return
+            return False
 
         prompts = [line.strip() for line in prompt_file.read_text(encoding='utf-8').splitlines()
                    if line.strip() and not line.startswith('#')]
@@ -518,6 +518,7 @@ class ContinuousPrinter:
                     time.sleep(1)
 
         logger.info("[提示词] 所有提示词处理完成")
+        return True
 
     def run_single(self, prompt: str = None, image: str = None) -> bool:
         """
@@ -673,8 +674,7 @@ def main():
         return 0
 
     elif args.command == 'prompts':
-        printer.run_prompt_list(args.file, args.delay)
-        return 0
+        return 0 if printer.run_prompt_list(args.file, args.delay) else 1
 
     else:
         parser.print_help()
