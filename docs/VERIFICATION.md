@@ -12,6 +12,7 @@ python -m unittest tests.test_continuous_print -v
 python -m unittest tests.test_generate_claude_crabs -v
 python -m unittest tests.test_hunyuan_quick -v
 python -m unittest tests.test_repository_hygiene -v
+python -m unittest tests.test_requirements -v
 python -m unittest tests.test_model_converter_cli -v
 python -m unittest tests.test_model_collector_cli tests.test_model_collector -v
 Hunyuan3D-1\venv\Scripts\python.exe -m pip check
