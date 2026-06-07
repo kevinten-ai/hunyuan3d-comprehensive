@@ -128,7 +128,7 @@ copy config\printer.json.example config\printer.json
 
 ```json
 {
-  "host": "192.168.1.100",
+  "host": "YOUR_PRINTER_IP",
   "access_code": "YOUR_ACCESS_CODE",
   "serial": "SNXXX",
   "method": "mqtt"
@@ -138,7 +138,7 @@ copy config\printer.json.example config\printer.json
 配置也可以通过命令写入:
 
 ```powershell
-python scripts/auto_print.py config --host 192.168.1.100 --access-code YOUR_CODE --serial SNXXX
+python scripts/auto_print.py config --host <printer-ip> --access-code <access-code> --serial <serial>
 python scripts/auto_print.py check-config
 ```
 

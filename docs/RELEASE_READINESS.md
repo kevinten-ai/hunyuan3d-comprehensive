@@ -15,7 +15,7 @@
 - `ai_to_print.py` returns nonzero when generation does not produce a model, while `--mock --no-print` remains a local success path.
 - `continuous_print.py generate` returns nonzero for missing inputs or no-model generation and returns success for the local `--mock --no-print` path.
 - `generate_claude_crabs.py` returns success for `--list` and nonzero for missing Hunyuan3D-1 entrypoint or failed batch generation.
-- `auto_print.py config` rejects template printer values before writing local config.
+- `auto_print.py config` rejects host/access-code/serial template printer values before writing local config.
 - AI-to-print and continuous-print entry points reuse the printer config preflight, so template `printer.json` values do not trigger queue creation.
 - `model_collector.py` supports isolated model-library roots through `MODEL_COLLECTOR_MODELS_DIR` and returns nonzero for local CLI input failures.
 - `config/env.example` documents optional local environment overrides, and `.env` files are ignored.

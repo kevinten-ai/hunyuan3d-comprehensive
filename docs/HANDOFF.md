@@ -22,7 +22,7 @@ copy config\printer.json.example config\printer.json
 
 Edit `.env` only for local overrides such as `HUNYUAN3D1_PYTHON`, `HUNYUAN3D2_MODEL_PATH`, and `MODEL_COLLECTOR_MODELS_DIR`. The tracked template is `config/env.example`. Do not commit `.env`.
 
-Edit `config/printer.json` with real Bambu Lab values before printer validation. Do not commit `config/printer.json`; keep `config/printer.json.example` as the tracked template.
+Edit `config/printer.json` with real Bambu Lab values before printer validation. Replace `YOUR_PRINTER_IP`, `YOUR_ACCESS_CODE`, and `SNXXX` before running queue commands. Do not commit `config/printer.json`; keep `config/printer.json.example` as the tracked template.
 
 ## Generate Models
 

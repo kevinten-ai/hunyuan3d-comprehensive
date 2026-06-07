@@ -23,16 +23,26 @@ class AutoPrintConfigTests(unittest.TestCase):
     def test_template_placeholders_are_not_valid(self):
         errors, warnings = validate_printer_config(
             {
-                "host": "192.168.1.100",
+                "host": "YOUR_PRINTER_IP",
                 "access_code": "YOUR_ACCESS_CODE",
                 "serial": "SNXXX",
                 "method": "mqtt",
             }
         )
 
+        self.assertTrue(any("host" in error for error in errors))
         self.assertTrue(any("access_code" in error for error in errors))
         self.assertTrue(any("serial" in error for error in errors))
-        self.assertTrue(any("host" in warning for warning in warnings))
+        self.assertEqual(warnings, [])
+
+    def test_tracked_printer_template_is_not_valid_as_runtime_config(self):
+        template = Path(__file__).resolve().parents[1] / "config" / "printer.json.example"
+        config = json.loads(template.read_text(encoding="utf-8"))
+
+        errors, warnings = validate_printer_config(config)
+
+        self.assertTrue(errors)
+        self.assertEqual(warnings, [])
 
     def test_valid_mqtt_config_passes(self):
         errors, warnings = validate_printer_config(
@@ -74,7 +84,7 @@ class AutoPrintConfigTests(unittest.TestCase):
                 "auto_print.py",
                 "config",
                 "--host",
-                "192.168.1.100",
+                "YOUR_PRINTER_IP",
                 "--access-code",
                 "YOUR_ACCESS_CODE",
                 "--serial",

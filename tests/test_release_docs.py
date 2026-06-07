@@ -22,6 +22,7 @@ class ReleaseDocsTests(unittest.TestCase):
             self.assertIn(heading, content)
 
         for required_path in [
+            "YOUR_PRINTER_IP",
             "config/printer.json.example",
             "config/env.example",
             "docs/VERIFICATION.md",
