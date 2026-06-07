@@ -14,7 +14,7 @@
 - Bambu client tests cover default status fields, MQTT connection callback success/failure/timeout handling, MQTT report parsing, queue status serialization, HTTP upload success/failure return values, empty-file start rejection, and local `project_file` command payload construction.
 - `model_converter.py` returns nonzero for local CLI input failures and reports missing files without tracebacks.
 - `auto_print.py` returns nonzero for local add/remove/cancel/stop/clear failure paths instead of reporting a false-success CLI exit.
-- `ai_to_print.py` returns nonzero when generation does not produce a model, while `--mock --no-print` remains a local success path.
+- `ai_to_print.py` returns nonzero when generation does not produce a model, and `ai_to_print.py discover` returns nonzero when no printer is found locally; `--mock --no-print` remains a local success path.
 - `continuous_print.py generate` returns nonzero for missing inputs or no-model generation and returns success for the local `--mock --no-print` path.
 - `generate_claude_crabs.py` returns success for `--list` and nonzero for missing Hunyuan3D-1 entrypoint or failed batch generation.
 - `auto_print.py config` rejects host/access-code/serial template printer values before writing local config.
@@ -46,6 +46,8 @@ python scripts/model_converter.py info models/converted/validation_hunyuan2.3mf
 # Expected printer config gate until config/printer.json exists:
 python scripts/auto_print.py check-config
 python scripts/auto_print.py status
+# Expected printer discovery gate when no printer is found:
+python scripts/ai_to_print.py discover --timeout 0.1
 python scripts/generate_claude_crabs.py --list
 python scripts/check_comfyui_workflow_assets.py --allow-missing
 python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server

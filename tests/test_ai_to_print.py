@@ -263,6 +263,28 @@ class AiToPrintTests(unittest.TestCase):
 
             self.assertIn("[OK]", stdout.getvalue())
 
+    def test_discover_returns_nonzero_when_no_printers_found(self):
+        stdout = StringIO()
+
+        with patch.object(ai_to_print, "discover_printers", return_value=[]) as discover, \
+                patch.object(sys, "argv", ["ai_to_print.py", "discover", "--timeout", "0.1"]), \
+                patch("sys.stdout", new=stdout):
+            self.assertEqual(ai_to_print.main(), 1)
+
+        discover.assert_called_once_with(timeout=0.1)
+        self.assertIn("未发现打印机", stdout.getvalue())
+
+    def test_discover_returns_zero_when_printer_is_found(self):
+        stdout = StringIO()
+
+        with patch.object(ai_to_print, "discover_printers", return_value=[{"ip": "192.0.2.55"}]) as discover, \
+                patch.object(sys, "argv", ["ai_to_print.py", "discover", "--timeout", "0.1"]), \
+                patch("sys.stdout", new=stdout):
+            self.assertEqual(ai_to_print.main(), 0)
+
+        discover.assert_called_once_with(timeout=0.1)
+        self.assertIn("192.0.2.55", stdout.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

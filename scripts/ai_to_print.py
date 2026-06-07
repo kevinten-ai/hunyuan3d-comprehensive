@@ -426,6 +426,7 @@ def main():
 
     # discover - 发现打印机
     discover_parser = subparsers.add_parser('discover', help='发现打印机')
+    discover_parser.add_argument('--timeout', type=float, default=3.0, help='搜索超时时间')
 
     args = parser.parse_args()
 
@@ -435,15 +436,19 @@ def main():
 
     # 发现打印机
     if args.command == 'discover':
+        if not HAS_PRINT:
+            print("错误: 打印模块不可用，无法发现打印机")
+            return 1
         print("正在搜索拓竹打印机...")
-        printers = discover_printers(timeout=3.0)
+        printers = discover_printers(timeout=args.timeout)
         if printers:
             print(f"发现 {len(printers)} 台打印机:")
             for p in printers:
                 print(f"  - {p['ip']}")
+            return 0
         else:
             print("未发现打印机")
-        return 0
+            return 1
 
     # 查看状态
     if args.command == 'status':

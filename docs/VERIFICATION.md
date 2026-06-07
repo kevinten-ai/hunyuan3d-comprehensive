@@ -34,6 +34,8 @@ python scripts/model_converter.py info models/converted/validation_hunyuan2.3mf
 # Printer config gate; expected nonzero until config/printer.json exists:
 python scripts/auto_print.py check-config
 python scripts/auto_print.py status
+# Printer discovery gate; expected nonzero when no printer is found locally:
+python scripts/ai_to_print.py discover --timeout 0.1
 python scripts/check_comfyui_workflow_assets.py --allow-missing
 python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server
 python ComfyUI/main.py --listen 127.0.0.1 --port 8190 --disable-auto-launch
@@ -47,7 +49,7 @@ The `auto_print.py config` and `auto_print.py check-config` commands validate th
 
 `scripts/hunyuan_quick.py` returns nonzero for real backend command failures and invalid batch folders while keeping dry-run command construction testable without model weights.
 
-`scripts/ai_to_print.py` returns nonzero when generation does not produce a model, while `--mock --no-print` remains the local success demo path. Before automatic queueing, it rejects source model files and generic geometry 3MF with instructions to convert plus slice first.
+`scripts/ai_to_print.py` returns nonzero when generation does not produce a model, and its printer discovery command returns nonzero when no printer is found locally. `--mock --no-print` remains the local success demo path. Before automatic queueing, it rejects source model files and generic geometry 3MF with instructions to convert plus slice first.
 
 `scripts/continuous_print.py generate` returns nonzero when required inputs are missing or generation does not produce a model; `--mock --no-print` remains the local success demo path. Before automatic queueing, it rejects source model files and generic geometry 3MF with instructions to convert plus slice first.
 
@@ -90,7 +92,7 @@ python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id=
 ```
 - GLB-to-STL and GLB-to-3MF conversion are verified against `outputs/validation/hunyuan2_image/validation.glb` using both `scripts/model_converter.py` and the dedicated `scripts/glb_to_3mf.py` wrapper. The generated `models/converted/validation_hunyuan2.3mf` is readable by `model_converter.py info` and reports watertight output in this local run.
 - ComfyUI quick test exits successfully, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`. After installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`, `nodes_glsl.py` and `nodes_math.py` no longer fail to import. A temporary browser validation at `http://127.0.0.1:8190` rendered the ComfyUI UI (`Unsaved Workflow`, `Manager`, queue status, zoom controls). `python scripts/check_comfyui_workflow_assets.py --allow-missing` verifies the example workflow gates: 13 asset references checked, 7 unique required assets missing, and 2 unique optional/downloadable assets missing in the current local checkout.
-- Printer validation is pending because `config/printer.json` is not present. `python scripts/auto_print.py config/check-config` is the local preflight gate before network/printer validation, and the AI-to-print/continuous-print entry points now reuse it. Unit tests locally verify default `PrinterStatus.remaining_time`, MQTT connection callback success/failure/timeout handling, MQTT report parsing, queue status serialization, ready-to-print queue file enforcement, generic 3MF rejection, source-model rejection before AI/continuous queueing, external slicer-command success/failure handling, `BAMBU_SLICER_OUTPUT_EXT` output extension rejection before slicer execution, upload-failure job handling without starting print, start-command-failure job handling without monitoring, current-job cancel/pause/resume/stop failure handling, clear-on-stop-failure handling, empty-file start rejection, HTTP upload success/failure return values, Bambu `project_file` command payload construction, rejection of host/access-code/serial template printer config across the auto-print entry points, AI-to-print and continuous-print no-model failures, and clean nonzero CLI failure paths.
+- Printer validation is pending because `config/printer.json` is not present. `python scripts/auto_print.py config/check-config` is the local preflight gate before network/printer validation, and the AI-to-print/continuous-print entry points now reuse it. Unit tests locally verify default `PrinterStatus.remaining_time`, MQTT connection callback success/failure/timeout handling, MQTT report parsing, queue status serialization, ready-to-print queue file enforcement, generic 3MF rejection, source-model rejection before AI/continuous queueing, external slicer-command success/failure handling, `BAMBU_SLICER_OUTPUT_EXT` output extension rejection before slicer execution, upload-failure job handling without starting print, start-command-failure job handling without monitoring, current-job cancel/pause/resume/stop failure handling, clear-on-stop-failure handling, empty-file start rejection, HTTP upload success/failure return values, Bambu `project_file` command payload construction, rejection of host/access-code/serial template printer config across the auto-print entry points, AI-to-print and continuous-print no-model failures, AI-to-print no-printer discovery failures, and clean nonzero CLI failure paths.
 
 ## Release Gate
 
