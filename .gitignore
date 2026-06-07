@@ -28,6 +28,7 @@ outputs/text_*/
 outputs/img_*/
 outputs/continuous/
 models/ready-to-print/
+models/slicer-input/
 models/converted/
 Hunyuan3D-2/assets/*.glb
 

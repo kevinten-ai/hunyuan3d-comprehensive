@@ -1,4 +1,5 @@
 import sys
+import zipfile
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -7,6 +8,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from bambu_print import PrintQueue, QueueStatus
 from bambu_print.print_queue import QueuedJob
+
+
+def write_bambu_project_3mf(path: Path):
+    with zipfile.ZipFile(path, "w") as package:
+        package.writestr("3D/3dmodel.model", "<model />")
+        package.writestr("Metadata/project_settings.config", "{}")
+        package.writestr("Metadata/slice_info.config", "<config />")
 
 
 class FakePrinter:
@@ -94,7 +102,7 @@ class PrintQueueTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             source = tmp_path / "model.3mf"
-            source.write_text("3mf", encoding="utf-8")
+            write_bambu_project_3mf(source)
             queue_dir = tmp_path / "queue"
             queue = self.make_queue(queue_dir)
 
@@ -111,13 +119,39 @@ class PrintQueueTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             source = tmp_path / "model.3mf"
-            source.write_text("3mf", encoding="utf-8")
+            write_bambu_project_3mf(source)
             queue = self.make_queue(tmp_path / "queue")
 
             queue.add(str(source), name="manual start model")
 
             self.assertEqual(queue.status, QueueStatus.IDLE)
             self.assertIsNone(queue._worker_thread)
+
+    def test_add_rejects_generic_geometry_3mf_without_bambu_metadata(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            source = tmp_path / "geometry.3mf"
+            with zipfile.ZipFile(source, "w") as package:
+                package.writestr("3D/3dmodel.model", "<model />")
+            queue = self.make_queue(tmp_path / "queue")
+
+            with self.assertRaises(ValueError) as context:
+                queue.add(str(source), name="generic geometry")
+
+            self.assertIn("Bambu Studio", str(context.exception))
+            self.assertIn("sliced", str(context.exception))
+
+    def test_add_accepts_gcode_without_3mf_metadata(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            source = tmp_path / "plate.gcode"
+            source.write_text("; gcode", encoding="ascii")
+            queue = self.make_queue(tmp_path / "queue")
+
+            job_id = queue.add(str(source), name="gcode plate")
+
+            self.assertTrue(job_id)
+            self.assertEqual(queue.list_queue()[0]["filepath"], str(source))
 
     def test_status_includes_printer_remaining_time(self):
         with TemporaryDirectory() as tmp:
@@ -132,7 +166,7 @@ class PrintQueueTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             source = tmp_path / "model.3mf"
-            source.write_text("3mf", encoding="utf-8")
+            write_bambu_project_3mf(source)
             queue = self.make_queue(tmp_path / "queue")
             queue.printer = FakePrinter(send_file_result=False)
             failed_jobs = []
@@ -162,7 +196,7 @@ class PrintQueueTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             source = tmp_path / "model.3mf"
-            source.write_text("3mf", encoding="utf-8")
+            write_bambu_project_3mf(source)
 
             queue = self.make_queue(tmp_path / "queue")
             queue.printer = FakePrinter(start_print_result=False)

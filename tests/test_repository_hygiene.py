@@ -27,6 +27,7 @@ class RepositoryHygieneTests(unittest.TestCase):
             "models/checkpoints/model.onnx",
             "outputs/validation/hunyuan2_image/validation.glb",
             "models/converted/validation.3mf",
+            "models/slicer-input/demo.stl",
         ]
 
         for path in ignored_paths:

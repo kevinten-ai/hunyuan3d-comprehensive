@@ -68,7 +68,7 @@ python scripts/auto_print.py status
 python scripts/auto_print.py watch
 ```
 
-The raw queue accepts only ready-to-print files such as `.3mf`, `.gcode`, and `.bgcode`. Source geometry such as STL/OBJ/GLB should be converted or sliced first; the AI-to-print and continuous-print entry points perform a 3MF conversion before queueing generated models.
+The raw queue accepts only ready-to-print files such as `.gcode`, `.bgcode`, or Bambu/OrcaSlicer project `.3mf` files with slice metadata. Source geometry such as STL/OBJ/GLB and generic geometry 3MF files must be converted for a slicer and then sliced/exported before queueing; the AI-to-print and continuous-print entry points reject source geometry before direct queueing.
 
 AI-to-print and continuous-print entry points reuse the same printer preflight before automatic queue creation.
 

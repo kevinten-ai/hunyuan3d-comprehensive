@@ -62,13 +62,11 @@ class ContinuousPrintTests(unittest.TestCase):
             self.assertIsNone(printer.printer_config)
             self.assertIsNone(printer.print_queue)
 
-    def test_add_to_print_queue_prepares_source_model_before_queueing(self):
+    def test_add_to_print_queue_rejects_source_model_before_queueing(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "model.stl"
             source.write_text("solid mock\nendsolid mock\n", encoding="ascii")
-            ready = root / "model_print_ready.3mf"
-            ready.write_text("ready", encoding="ascii")
 
             class FakeQueue:
                 def __init__(self):
@@ -82,15 +80,10 @@ class ContinuousPrintTests(unittest.TestCase):
                 printer = ContinuousPrinter(output_dir=tmp, auto_start=False)
             printer.print_queue = FakeQueue()
 
-            with patch(
-                "scripts.ai_to_print.prepare_ready_to_print_model",
-                return_value=str(ready),
-            ) as prepare:
-                result = printer.add_to_print_queue(str(source), name="demo")
+            result = printer.add_to_print_queue(str(source), name="demo")
 
-            self.assertEqual(result, "job-1")
-            self.assertEqual(printer.print_queue.added_path, str(ready))
-            prepare.assert_called_once_with(str(source), output_dir=str(source.parent))
+            self.assertIsNone(result)
+            self.assertIsNone(printer.print_queue.added_path)
 
     def test_main_returns_nonzero_without_prompt_or_image(self):
         stdout = StringIO()

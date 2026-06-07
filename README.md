@@ -14,7 +14,7 @@ GitHub 仓库: https://github.com/kevinten-ai/hunyuan3d-comprehensive
 | Hunyuan3D-2 | 已包含源码 | 用于图片生成 3D；真实运行需要权重、CUDA/Python 环境 |
 | ComfyUI | 本地运行资产 | `ComfyUI/` 是本地目录，不作为仓库代码提交 |
 | 模型转换 | 已实现 | `scripts/model_converter.py` 使用 `trimesh` 转换/修复 STL、OBJ、GLB 等 |
-| 模型收集 | 已实现 | `scripts/model_collector.py` 管理模型库和 ready-to-print 导出 |
+| 模型收集 | 已实现 | `scripts/model_collector.py` 管理模型库和 slicer-input 导出 |
 | Bambu 打印队列 | 已实现基础层 | `bambu_print/` 管理队列、状态、MQTT 控制命令 |
 | AI 到打印 | 已安全化 | 默认不再模拟成功；真实生成需 `--run-generator`，演示需 `--mock` |
 
@@ -155,7 +155,7 @@ python scripts/auto_print.py status
 python scripts/auto_print.py watch
 ```
 
-打印队列只接收 ready-to-print 文件，例如 `.3mf`、`.gcode` 或 `.bgcode`。`outputs/demo/demo.stl` 这类源模型需要先通过 Bambu Studio 切片，或用本仓库的转换脚本生成 `.3mf` 后再入队。
+打印队列只接收 ready-to-print 文件，例如 Bambu/OrcaSlicer 项目 `.3mf`、`.gcode` 或 `.bgcode`。`outputs/demo/demo.stl` 这类源模型可以先用本仓库转换脚本生成切片器可打开的 `.3mf`，但仍需要通过 Bambu Studio 或 OrcaSlicer 切片导出后再入队。
 
 注意: `add` 只入队，不会默认连接或启动打印机；需要显式运行 `start`。
 `config`、`check-config`、`ai_to_print.py` 和 `continuous_print.py` 使用同一套本地配置 preflight。

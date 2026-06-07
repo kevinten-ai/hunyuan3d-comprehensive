@@ -103,7 +103,7 @@ python scripts/auto_print.py add models/converted/demo.3mf --name demo
 python scripts/auto_print.py list
 ```
 
-打印队列只接收 ready-to-print 文件，例如 `.3mf`、`.gcode` 或 `.bgcode`。`outputs/demo/demo.stl` 这类源模型需要先通过 Bambu Studio 切片，或用本仓库的转换脚本生成 `.3mf` 后再入队。
+打印队列只接收 ready-to-print 文件，例如 Bambu/OrcaSlicer 项目 `.3mf`、`.gcode` 或 `.bgcode`。`outputs/demo/demo.stl` 这类源模型可以先用本仓库转换脚本生成切片器可打开的 `.3mf`，但仍需要通过 Bambu Studio 或 OrcaSlicer 切片导出后再入队。
 
 显式启动队列:
 

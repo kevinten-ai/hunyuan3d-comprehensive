@@ -8,7 +8,7 @@
 - **打印队列管理** - 支持队列添加、暂停、继续、取消
 - **实时进度监控** - 支持回调函数和状态监控
 - **持久化存储** - 队列和配置自动保存
-- **Ready-to-print 队列** - 直接打印队列接收 3MF, G-code, Bambu binary G-code；源模型需先转换或切片
+- **Ready-to-print 队列** - 直接打印队列接收 Bambu/OrcaSlicer 项目 3MF、G-code、Bambu binary G-code；源模型需先转换给切片器打开，再切片导出
 
 ## 当前实现边界
 
@@ -261,7 +261,7 @@ python scripts/auto_print.py clear --force
 
 ### 文件上传失败
 
-拓竹打印机可能需要先通过 Bambu Studio 或 SD 卡导入文件。打印队列只接收 ready-to-print 文件，例如 `.3mf`、`.gcode` 或 `.bgcode`；STL/OBJ/GLB 等源模型需要先转换或切片。自动上传功能可能因固件版本而异；如果 HTTP 上传失败，`send_file()` 会返回 `False`，并且不会把该文件记录为可启动打印的远程文件。
+拓竹打印机可能需要先通过 Bambu Studio 或 SD 卡导入文件。打印队列只接收 ready-to-print 文件，例如带 Bambu/OrcaSlicer 项目元数据的 `.3mf`、`.gcode` 或 `.bgcode`；STL/OBJ/GLB 和普通几何 3MF 等源模型需要先转换给切片器打开，再切片导出。自动上传功能可能因固件版本而异；如果 HTTP 上传失败，`send_file()` 会返回 `False`，并且不会把该文件记录为可启动打印的远程文件。
 
 ### MQTT 连接被拒绝
 

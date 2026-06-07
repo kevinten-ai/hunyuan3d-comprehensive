@@ -21,7 +21,7 @@ import json
 PROJECT_ROOT = Path(__file__).parent.parent
 MODELS_DIR = PROJECT_ROOT / "models"
 MODELS_RAW = MODELS_DIR / "raw"
-MODELS_READY = MODELS_DIR / "ready-to-print"
+MODELS_SLICER_INPUT = MODELS_DIR / "slicer-input"
 MODELS_COLLECTION = MODELS_DIR / "collection"
 MODELS_DIR_ENV = "MODEL_COLLECTOR_MODELS_DIR"
 
@@ -43,7 +43,7 @@ class ModelCollector:
     def __init__(self, models_dir: Optional[Path] = None):
         self.models_dir = Path(models_dir) if models_dir else MODELS_DIR
         self.models_raw = self.models_dir / "raw"
-        self.models_ready = self.models_dir / "ready-to-print"
+        self.models_slicer_input = self.models_dir / "slicer-input"
         self.models_collection = self.models_dir / "collection"
         self._ensure_directories()
 
@@ -52,7 +52,7 @@ class ModelCollector:
         dirs = [
             self.models_raw / 'text-to-3d',
             self.models_raw / 'image-to-3d',
-            self.models_ready,
+            self.models_slicer_input,
             self.models_collection,
         ]
         for cat in self.CATEGORIES.keys():
@@ -154,16 +154,16 @@ class ModelCollector:
             return [m for m in index if m.get('category') == category]
         return index
 
-    def export_for_print(self, model_name: str, target_dir: str = None) -> Path:
+    def export_for_slicing(self, model_name: str, target_dir: str = None) -> Path:
         """
-        导出模型到打印目录
+        Export a collected source model to the slicer-input directory.
 
         Args:
-            model_name: 模型名称（支持模糊匹配）
-            target_dir: 目标目录
+            model_name: Model name; fuzzy matching is supported.
+            target_dir: Optional export directory.
 
         Returns:
-            导出后的文件路径
+            Exported file path.
         """
         index = self.list_models()
 
@@ -182,7 +182,7 @@ class ModelCollector:
         source = self.models_dir / model_info['path']
 
         if target_dir is None:
-            target_dir = self.models_ready
+            target_dir = self.models_slicer_input
         else:
             target_dir = Path(target_dir)
 
@@ -192,6 +192,10 @@ class ModelCollector:
         shutil.copy2(source, dest)
         print(f"[OK] 已导出到: {dest}")
         return dest
+
+    def export_for_print(self, model_name: str, target_dir: str = None) -> Path:
+        """Backward-compatible alias for export_for_slicing()."""
+        return self.export_for_slicing(model_name, target_dir)
 
 
 def main():
@@ -247,7 +251,7 @@ def main():
             print("错误: 请提供模型名称")
             return 1
         try:
-            result = collector.export_for_print(sys.argv[2])
+            result = collector.export_for_slicing(sys.argv[2])
         except ValueError as e:
             print(f"错误: {e}")
             return 1

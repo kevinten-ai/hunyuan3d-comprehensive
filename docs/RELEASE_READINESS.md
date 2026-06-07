@@ -9,7 +9,7 @@
   - `--run-generator` is required before scripts call real Hunyuan3D generation.
   - root Hunyuan command failures return nonzero with ordinary error output.
 - Bambu queue `add` persists jobs without auto-connecting or starting the printer; upload failures mark jobs failed without sending a print-start command; start-command failures mark jobs failed without entering monitor mode; current-job cancel/pause/resume/stop state changes only proceed after the matching printer command succeeds; `clear` does not discard queued work when stopping the active print fails.
-- The Bambu queue only accepts ready-to-print files (`.3mf`, `.gcode`, `.bgcode`); AI-to-print and continuous-print convert generated source geometry to 3MF before queueing.
+- The Bambu queue only accepts ready-to-print files (`.gcode`, `.bgcode`, or Bambu/OrcaSlicer project `.3mf` with slice metadata); AI-to-print and continuous-print reject generated source geometry before queueing and instruct the user to convert plus slice first.
 - Bambu client tests cover default status fields, MQTT connection callback success/failure/timeout handling, MQTT report parsing, queue status serialization, HTTP upload success/failure return values, empty-file start rejection, and local `project_file` command payload construction.
 - `model_converter.py` returns nonzero for local CLI input failures and reports missing files without tracebacks.
 - `auto_print.py` returns nonzero for local add/remove/cancel/stop/clear failure paths instead of reporting a false-success CLI exit.
@@ -18,7 +18,7 @@
 - `generate_claude_crabs.py` returns success for `--list` and nonzero for missing Hunyuan3D-1 entrypoint or failed batch generation.
 - `auto_print.py config` rejects host/access-code/serial template printer values before writing local config.
 - AI-to-print and continuous-print entry points reuse the printer config preflight, so template `printer.json` values do not trigger queue creation.
-- AI-to-print and continuous-print entry points convert source model files to queue-ready 3MF before calling the Bambu queue.
+- AI-to-print and continuous-print entry points do not treat generated STL/OBJ/GLB or generic geometry 3MF as printer-ready files.
 - `model_collector.py` supports isolated model-library roots through `MODEL_COLLECTOR_MODELS_DIR` and returns nonzero for local CLI input failures.
 - `config/env.example` documents optional local environment overrides, and `.env` files are ignored.
 - Repository hygiene tests cover local-only runtime/model artifacts, tracked templates, and a 100 MB tracked-file threshold.

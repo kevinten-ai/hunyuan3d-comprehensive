@@ -13,6 +13,7 @@ import time
 import json
 import uuid
 import threading
+import zipfile
 from pathlib import Path
 from typing import List, Optional, Callable, Dict, Any
 from dataclasses import dataclass, field, asdict
@@ -23,6 +24,21 @@ from .printer_client import BambuPrinterClient, ConnectionType, PrinterStatus
 
 
 PRINT_READY_EXTENSIONS = ('.3mf', '.gcode', '.bgcode')
+BAMBU_PROJECT_3MF_MARKERS = (
+    'Metadata/project_settings.config',
+    'Metadata/slice_info.config',
+)
+
+
+def is_bambu_project_3mf(filepath: str) -> bool:
+    """Return True when a 3MF looks like a sliced Bambu/Orca project package."""
+    try:
+        with zipfile.ZipFile(filepath) as package:
+            names = {name.replace('\\', '/') for name in package.namelist()}
+    except (OSError, zipfile.BadZipFile):
+        return False
+
+    return any(marker in names for marker in BAMBU_PROJECT_3MF_MARKERS)
 
 
 class QueueStatus(Enum):
@@ -260,7 +276,13 @@ class PrintQueue:
             supported = ', '.join(PRINT_READY_EXTENSIONS)
             raise ValueError(
                 f"不支持的打印文件格式: {ext}。打印队列只接受 ready-to-print 文件: {supported}。"
-                "请先用 Bambu Studio 或 scripts/model_converter.py 转换/切片。"
+                "请先用 Bambu Studio 或 OrcaSlicer 切片。"
+            )
+
+        if ext == '.3mf' and not is_bambu_project_3mf(filepath):
+            raise ValueError(
+                "3MF 文件缺少 Bambu/OrcaSlicer 项目或切片元数据，不能作为 sliced ready-to-print 文件入队。"
+                "请先用 Bambu Studio 或 OrcaSlicer 打开源模型并导出打印项目，或使用 .gcode/.bgcode。"
             )
 
         job_id = str(uuid.uuid4())[:8]

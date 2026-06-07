@@ -129,6 +129,27 @@ class ReleaseDocsTests(unittest.TestCase):
 
                 self.assertEqual(bad_examples, [])
 
+    def test_release_docs_do_not_claim_source_models_auto_become_print_ready(self):
+        forbidden_claims = [
+            "source models are converted to queue-ready 3MF",
+            "convert generated source geometry to 3MF before queueing",
+            "convert source model files to queue-ready 3MF",
+            "source-model-to-3MF preparation before AI/continuous queueing",
+            "source models are converted to queue-ready 3MF before printing",
+            "ready-to-print 导出",
+        ]
+
+        for relative_path in [
+            "docs/PROJECT_STATUS.md",
+            "docs/RELEASE_READINESS.md",
+            "docs/VERIFICATION.md",
+        ]:
+            with self.subTest(path=relative_path):
+                content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+                found = [claim for claim in forbidden_claims if claim in content]
+
+                self.assertEqual(found, [])
+
 
 if __name__ == "__main__":
     unittest.main()

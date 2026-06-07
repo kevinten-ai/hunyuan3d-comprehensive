@@ -220,37 +220,37 @@ def repair_model(model_path: str) -> str:
 
 def prepare_ready_to_print_model(model_path: str, output_dir: str = None, converter_cls=None) -> str:
     """
-    Convert source geometry to a file the print queue can start directly.
+    Validate that a file can be handed directly to the print queue.
 
-    Bambu start commands need ready-to-print assets such as 3MF/G-code. Generated
-    STL/OBJ/GLB files are source geometry, so they are converted to 3MF before
-    they reach the queue.
+    Generated STL/OBJ/GLB files are source geometry. They can be converted to
+    slicer-ready 3MF by the converter scripts, but they still need Bambu Studio
+    or OrcaSlicer before the printer can start them through `project_file`.
     """
     model_file = Path(model_path)
     ext = model_file.suffix.lower()
 
-    if ext in PRINT_READY_EXTENSIONS:
+    if ext in ('.gcode', '.bgcode'):
         return str(model_file)
+
+    if ext == '.3mf':
+        from bambu_print.print_queue import is_bambu_project_3mf
+
+        if is_bambu_project_3mf(str(model_file)):
+            return str(model_file)
+        raise ValueError(
+            "3MF 文件不是 Bambu/OrcaSlicer 切片项目，不能直接加入打印队列。"
+            "请先用 Bambu Studio 或 OrcaSlicer 切片导出，或使用 .gcode/.bgcode。"
+        )
 
     if ext not in SOURCE_MODEL_EXTENSIONS:
         supported = ', '.join(PRINT_READY_EXTENSIONS + SOURCE_MODEL_EXTENSIONS)
         raise ValueError(f"不支持的模型格式: {ext}。支持格式: {supported}")
 
-    if converter_cls is None:
-        from scripts.model_converter import ModelConverter
-
-        converter_cls = ModelConverter
-
-    converter_output = output_dir or str(model_file.parent)
-    print(f"\n[打印准备] 转换为 ready-to-print 3MF: {model_file}")
-    converter = converter_cls(output_dir=converter_output)
-    ready_file = converter.to_3mf(str(model_file), f"{model_file.stem}_print_ready")
-    ready_path = Path(ready_file)
-    if not ready_path.exists():
-        raise FileNotFoundError(f"转换后的 3MF 文件不存在: {ready_path}")
-
-    print(f"[打印准备] 已生成: {ready_path}")
-    return str(ready_path)
+    raise ValueError(
+        f"{ext} 是源模型格式，不能直接加入 Bambu 打印队列。"
+        "请先用 scripts/model_converter.py 或 scripts/glb_to_3mf.py 生成切片器可打开的 3MF，"
+        "再用 Bambu Studio 或 OrcaSlicer 切片导出 Bambu 项目 3MF、.gcode 或 .bgcode。"
+    )
 
 
 def add_to_print_queue(queue: PrintQueue, model_path: str, name: str = None):

@@ -1,5 +1,6 @@
 import sys
 import json
+import zipfile
 import unittest
 from io import StringIO
 from pathlib import Path
@@ -9,6 +10,13 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts import ai_to_print
+
+
+def write_bambu_project_3mf(path: Path):
+    with zipfile.ZipFile(path, "w") as package:
+        package.writestr("3D/3dmodel.model", "<model />")
+        package.writestr("Metadata/project_settings.config", "{}")
+        package.writestr("Metadata/slice_info.config", "<config />")
 
 
 class AiToPrintTests(unittest.TestCase):
@@ -61,7 +69,7 @@ class AiToPrintTests(unittest.TestCase):
     def test_prepare_ready_to_print_model_keeps_ready_file(self):
         with TemporaryDirectory() as tmp:
             source = Path(tmp) / "model.3mf"
-            source.write_text("ready", encoding="ascii")
+            write_bambu_project_3mf(source)
 
             class FakeConverter:
                 def __init__(self, output_dir=None):
@@ -74,36 +82,33 @@ class AiToPrintTests(unittest.TestCase):
 
             self.assertEqual(result, str(source))
 
-    def test_prepare_ready_to_print_model_converts_source_model_to_3mf(self):
+    def test_prepare_ready_to_print_model_rejects_generic_3mf(self):
+        with TemporaryDirectory() as tmp:
+            source = Path(tmp) / "geometry.3mf"
+            with zipfile.ZipFile(source, "w") as package:
+                package.writestr("3D/3dmodel.model", "<model />")
+
+            with self.assertRaises(ValueError) as context:
+                ai_to_print.prepare_ready_to_print_model(str(source))
+
+            self.assertIn("Bambu", str(context.exception))
+            self.assertIn("切片", str(context.exception))
+
+    def test_prepare_ready_to_print_model_rejects_source_model_without_slicing(self):
         with TemporaryDirectory() as tmp:
             source = Path(tmp) / "model.stl"
             source.write_text("solid mock\nendsolid mock\n", encoding="ascii")
-            converted = Path(tmp) / "converted" / "model_print_ready.3mf"
 
-            class FakeConverter:
-                def __init__(self, output_dir=None):
-                    self.output_dir = Path(output_dir)
+            with self.assertRaises(ValueError) as context:
+                ai_to_print.prepare_ready_to_print_model(str(source))
 
-                def to_3mf(self, input_path, output_name=None):
-                    self.output_dir.mkdir(parents=True, exist_ok=True)
-                    self.assert_input = input_path
-                    converted.write_text("ready", encoding="ascii")
-                    return converted
+            self.assertIn("源模型", str(context.exception))
+            self.assertIn("OrcaSlicer", str(context.exception))
 
-            result = ai_to_print.prepare_ready_to_print_model(
-                str(source),
-                output_dir=str(converted.parent),
-                converter_cls=FakeConverter,
-            )
-
-            self.assertEqual(result, str(converted))
-
-    def test_add_to_print_queue_queues_converted_ready_file(self):
+    def test_add_to_print_queue_rejects_source_model_before_queueing(self):
         with TemporaryDirectory() as tmp:
             source = Path(tmp) / "model.stl"
             source.write_text("solid mock\nendsolid mock\n", encoding="ascii")
-            converted = Path(tmp) / "model_print_ready.3mf"
-            converted.write_text("ready", encoding="ascii")
 
             class FakeQueue:
                 def __init__(self):
@@ -115,16 +120,10 @@ class AiToPrintTests(unittest.TestCase):
 
             queue = FakeQueue()
 
-            with patch.object(
-                ai_to_print,
-                "prepare_ready_to_print_model",
-                return_value=str(converted),
-            ) as prepare:
-                result = ai_to_print.add_to_print_queue(queue, str(source), "demo")
+            result = ai_to_print.add_to_print_queue(queue, str(source), "demo")
 
-            self.assertEqual(result, "job-1")
-            self.assertEqual(queue.added_path, str(converted))
-            prepare.assert_called_once_with(str(source))
+            self.assertIsNone(result)
+            self.assertIsNone(queue.added_path)
 
     def test_setup_printer_rejects_template_config(self):
         with TemporaryDirectory() as tmp:
