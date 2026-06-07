@@ -503,8 +503,6 @@ def main():
             return result if isinstance(result, int) else 0
         except Exception as e:
             print(f"错误: {e}")
-            import traceback
-            traceback.print_exc()
             return 1
     else:
         parser.print_help()

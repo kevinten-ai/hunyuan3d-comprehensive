@@ -11,8 +11,10 @@ from scripts import auto_print
 
 
 class FakeQueue:
-    def __init__(self, add_error: Exception | None = None):
+    def __init__(self, add_error: Exception | None = None,
+                 control_error: Exception | None = None):
         self.add_error = add_error
+        self.control_error = control_error
 
     def add(self, *_args, **_kwargs):
         if self.add_error:
@@ -24,6 +26,26 @@ class FakeQueue:
 
     def cancel(self, _job_id):
         return False
+
+    def start(self):
+        if self.control_error:
+            raise self.control_error
+
+    def pause(self):
+        if self.control_error:
+            raise self.control_error
+
+    def resume(self):
+        if self.control_error:
+            raise self.control_error
+
+    def stop(self):
+        if self.control_error:
+            raise self.control_error
+
+    def clear(self):
+        if self.control_error:
+            raise self.control_error
 
 
 class AutoPrintCliTests(unittest.TestCase):
@@ -96,6 +118,25 @@ class AutoPrintCliTests(unittest.TestCase):
         output = stdout.getvalue()
         self.assertIn("发现 1 台打印机", output)
         self.assertIn("192.0.2.25", output)
+
+    def test_control_commands_return_nonzero_without_traceback_on_queue_error(self):
+        for command in ["start", "pause", "resume", "stop"]:
+            with self.subTest(command=command):
+                stdout = StringIO()
+                stderr = StringIO()
+
+                with patch.object(
+                    auto_print,
+                    "get_queue",
+                    return_value=FakeQueue(control_error=RuntimeError("queue offline")),
+                ), patch.object(sys, "argv", ["auto_print.py", command]), \
+                        patch("sys.stdout", new=stdout), \
+                        patch("sys.stderr", new=stderr):
+                    self.assertEqual(auto_print.main(), 1)
+
+                combined_output = stdout.getvalue() + stderr.getvalue()
+                self.assertIn("queue offline", combined_output)
+                self.assertNotIn("Traceback", combined_output)
 
 
 if __name__ == "__main__":
