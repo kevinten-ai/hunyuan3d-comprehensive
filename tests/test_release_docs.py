@@ -98,6 +98,8 @@ class ReleaseDocsTests(unittest.TestCase):
 
     def test_release_docs_cover_slicer_output_extension_validation(self):
         for relative_path in [
+            "README.md",
+            "docs/HANDOFF.md",
             "docs/PROJECT_STATUS.md",
             "docs/RELEASE_READINESS.md",
             "docs/VERIFICATION.md",

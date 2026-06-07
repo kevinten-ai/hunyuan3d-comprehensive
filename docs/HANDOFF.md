@@ -24,7 +24,7 @@ copy config\printer.json.example config\printer.json
 
 Edit `.env` only for local overrides such as `HUNYUAN3D1_PYTHON`, `HUNYUAN3D2_MODEL_PATH`, and `MODEL_COLLECTOR_MODELS_DIR`. The tracked template is `config/env.example`. Do not commit `.env`.
 
-`BAMBU_SLICER_COMMAND` is optional and should stay unset until a local slicer command has been verified. It supports `{input}`, `{output}`, and `{output_dir}` placeholders. AI-to-print and continuous-print only continue queueing if that command produces a validated Bambu/OrcaSlicer project `.3mf`, `.gcode`, or `.bgcode`.
+`BAMBU_SLICER_COMMAND` is optional and should stay unset until a local slicer command has been verified. It supports `{input}`, `{output}`, and `{output_dir}` placeholders. `BAMBU_SLICER_OUTPUT_EXT` must be a ready-to-print output extension; unsafe values are rejected before slicer execution. AI-to-print and continuous-print only continue queueing if that command produces a validated Bambu/OrcaSlicer project `.3mf`, `.gcode`, or `.bgcode`.
 
 Edit `config/printer.json` with real Bambu Lab values before printer validation. Replace `YOUR_PRINTER_IP`, `YOUR_ACCESS_CODE`, and `YOUR_PRINTER_SERIAL` before running queue commands. Do not commit `config/printer.json`; keep `config/printer.json.example` as the tracked template.
 
@@ -72,7 +72,7 @@ python scripts/auto_print.py watch
 
 The raw queue accepts only ready-to-print files such as `.gcode`, `.bgcode`, or Bambu/OrcaSlicer project `.3mf` files with slice metadata. Source geometry such as STL/OBJ/GLB and generic geometry 3MF files must be converted for a slicer and then sliced/exported before queueing; the AI-to-print and continuous-print entry points reject source geometry before direct queueing.
 
-For automated source-model-to-print handoff, configure `BAMBU_SLICER_COMMAND` after validating the slicer command outside this repo. Leave it unset for manual Bambu Studio / OrcaSlicer export.
+For automated source-model-to-print handoff, configure `BAMBU_SLICER_COMMAND` after validating the slicer command outside this repo. Keep `BAMBU_SLICER_OUTPUT_EXT` on a validated output extension such as `.3mf`, `.gcode`, or `.bgcode`. Leave it unset for manual Bambu Studio / OrcaSlicer export.
 
 AI-to-print and continuous-print entry points reuse the same printer preflight before automatic queue creation.
 
