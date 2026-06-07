@@ -87,6 +87,15 @@ class ReleaseDocsTests(unittest.TestCase):
                 for expected_value in expected_placeholders.values():
                     self.assertIn(expected_value, content)
 
+    def test_env_template_documents_external_slicer_hook(self):
+        content = (PROJECT_ROOT / "config" / "env.example").read_text(encoding="utf-8")
+
+        self.assertIn("BAMBU_SLICER_COMMAND", content)
+        self.assertIn("BAMBU_SLICER_OUTPUT_EXT", content)
+        self.assertIn("{input}", content)
+        self.assertIn("{output}", content)
+        self.assertIn("{output_dir}", content)
+
     def test_bambu_package_examples_use_copy_safe_placeholders(self):
         old_example_values = [
             "192.168.1.100",

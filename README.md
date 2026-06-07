@@ -115,6 +115,7 @@ python scripts/ai_to_print.py image Hunyuan3D-2/assets/demo.png --run-generator 
 去掉 `--no-print` 后，脚本会尝试读取本地打印机配置并把模型加入打印队列。
 `ai_to_print.py` 和 `continuous_print.py` 会复用同一套本地配置检查；如果 `config/printer.json` 仍是模板占位值，会跳过自动打印。
 `continuous_print.py generate --no-print` 在没有生成模型时也会返回非 0；加 `--mock` 是本地连续生成演示成功路径。
+生成得到的 STL/OBJ/GLB 或普通几何 3MF 不能直接进 Bambu 队列；要自动衔接打印，需要先配置并验证外部切片器命令 `BAMBU_SLICER_COMMAND`，让它输出 Bambu/OrcaSlicer 项目 `.3mf`、`.gcode` 或 `.bgcode`。
 
 ## Bambu Lab 打印机配置
 
@@ -156,6 +157,8 @@ python scripts/auto_print.py watch
 ```
 
 打印队列只接收 ready-to-print 文件，例如 Bambu/OrcaSlicer 项目 `.3mf`、`.gcode` 或 `.bgcode`。`outputs/demo/demo.stl` 这类源模型可以先用本仓库转换脚本生成切片器可打开的 `.3mf`，但仍需要通过 Bambu Studio 或 OrcaSlicer 切片导出后再入队。
+
+如果你已经有可脚本化的切片器命令，可以在 `.env` 或 shell 中配置 `BAMBU_SLICER_COMMAND`。命令模板支持 `{input}`、`{output}`、`{output_dir}` 占位符；只有生成的文件通过 ready-to-print 校验后，AI-to-print / continuous-print 才会继续入队。
 
 注意: `add` 只入队，不会默认连接或启动打印机；需要显式运行 `start`。
 `config`、`check-config`、`ai_to_print.py` 和 `continuous_print.py` 使用同一套本地配置 preflight。

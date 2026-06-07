@@ -23,6 +23,7 @@ import os
 import time
 import argparse
 import shutil
+import subprocess
 from pathlib import Path
 from datetime import datetime
 
@@ -32,6 +33,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 PRINT_READY_EXTENSIONS = ('.3mf', '.gcode', '.bgcode')
 SOURCE_MODEL_EXTENSIONS = ('.stl', '.obj', '.ply', '.glb', '.gltf')
+SLICER_COMMAND_ENV = "BAMBU_SLICER_COMMAND"
+SLICER_OUTPUT_EXT_ENV = "BAMBU_SLICER_OUTPUT_EXT"
 
 # 尝试导入打印模块
 try:
@@ -218,7 +221,39 @@ def repair_model(model_path: str) -> str:
     return str(fallback_file)
 
 
-def prepare_ready_to_print_model(model_path: str, output_dir: str = None, converter_cls=None) -> str:
+def _suggest_sliced_output_path(model_file: Path, output_dir: str = None) -> Path:
+    output_ext = os.environ.get(SLICER_OUTPUT_EXT_ENV, ".3mf")
+    if not output_ext.startswith("."):
+        output_ext = "." + output_ext
+
+    target_dir = Path(output_dir) if output_dir else model_file.parent
+    target_dir.mkdir(parents=True, exist_ok=True)
+    return target_dir / f"{model_file.stem}_sliced{output_ext}"
+
+
+def _run_slicer_command(model_file: Path, output_path: Path, command_template: str, runner=None) -> Path:
+    command = command_template.format(
+        input=str(model_file),
+        output=str(output_path),
+        output_dir=str(output_path.parent),
+    )
+    print(f"\n[切片] 执行外部切片命令: {command}")
+    runner = runner or subprocess.run
+    result = runner(command, shell=True, cwd=str(PROJECT_ROOT))
+    if result.returncode != 0:
+        raise RuntimeError(f"切片命令失败，退出码: {result.returncode}")
+    if not output_path.exists():
+        raise FileNotFoundError(f"切片命令未生成输出文件: {output_path}")
+    return output_path
+
+
+def prepare_ready_to_print_model(
+    model_path: str,
+    output_dir: str = None,
+    converter_cls=None,
+    slicer_command: str = None,
+    runner=None,
+) -> str:
     """
     Validate that a file can be handed directly to the print queue.
 
@@ -242,14 +277,22 @@ def prepare_ready_to_print_model(model_path: str, output_dir: str = None, conver
             "请先用 Bambu Studio 或 OrcaSlicer 切片导出，或使用 .gcode/.bgcode。"
         )
 
+    slicer_command = slicer_command or os.environ.get(SLICER_COMMAND_ENV)
+
     if ext not in SOURCE_MODEL_EXTENSIONS:
         supported = ', '.join(PRINT_READY_EXTENSIONS + SOURCE_MODEL_EXTENSIONS)
         raise ValueError(f"不支持的模型格式: {ext}。支持格式: {supported}")
 
+    if slicer_command:
+        output_path = _suggest_sliced_output_path(model_file, output_dir)
+        sliced_path = _run_slicer_command(model_file, output_path, slicer_command, runner=runner)
+        return prepare_ready_to_print_model(str(sliced_path))
+
     raise ValueError(
         f"{ext} 是源模型格式，不能直接加入 Bambu 打印队列。"
         "请先用 scripts/model_converter.py 或 scripts/glb_to_3mf.py 生成切片器可打开的 3MF，"
-        "再用 Bambu Studio 或 OrcaSlicer 切片导出 Bambu 项目 3MF、.gcode 或 .bgcode。"
+        "再用 Bambu Studio 或 OrcaSlicer 切片导出 Bambu 项目 3MF、.gcode 或 .bgcode；"
+        f"或配置 {SLICER_COMMAND_ENV} 自动生成可打印文件。"
     )
 
 

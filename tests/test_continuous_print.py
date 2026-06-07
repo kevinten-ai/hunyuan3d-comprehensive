@@ -94,6 +94,20 @@ class ContinuousPrintTests(unittest.TestCase):
 
         self.assertIn("请提供", stdout.getvalue())
 
+    def test_main_status_returns_json_without_printer_config(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            stdout = StringIO()
+
+            with patch.object(continuous_print, "PROJECT_ROOT", root), \
+                    patch.object(sys, "argv", ["continuous_print.py", "status"]), \
+                    patch("sys.stdout", new=stdout):
+                self.assertEqual(continuous_print.main(), 0)
+
+            status = json.loads(stdout.getvalue())
+            self.assertFalse(status["is_running"])
+            self.assertFalse(status["printer_connected"])
+
     def test_main_returns_nonzero_when_generation_does_not_produce_model(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)

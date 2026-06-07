@@ -1,6 +1,7 @@
 import sys
 import json
 import zipfile
+import subprocess
 import unittest
 from io import StringIO
 from pathlib import Path
@@ -104,6 +105,49 @@ class AiToPrintTests(unittest.TestCase):
 
             self.assertIn("源模型", str(context.exception))
             self.assertIn("OrcaSlicer", str(context.exception))
+
+    def test_prepare_ready_to_print_model_runs_configured_slicer_command(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "model.stl"
+            output_dir = root / "sliced"
+            source.write_text("solid mock\nendsolid mock\n", encoding="ascii")
+            commands = []
+
+            def fake_runner(command, **kwargs):
+                commands.append((command, kwargs))
+                output = Path(command.rsplit(" ", 1)[-1])
+                write_bambu_project_3mf(output)
+                return subprocess.CompletedProcess(command, 0)
+
+            result = ai_to_print.prepare_ready_to_print_model(
+                str(source),
+                output_dir=str(output_dir),
+                slicer_command="fake-slicer {input} {output}",
+                runner=fake_runner,
+            )
+
+            self.assertEqual(Path(result).suffix, ".3mf")
+            self.assertIn("model_sliced.3mf", result)
+            self.assertIn(str(source), commands[0][0])
+            self.assertEqual(commands[0][1]["shell"], True)
+
+    def test_prepare_ready_to_print_model_reports_slicer_command_failure(self):
+        with TemporaryDirectory() as tmp:
+            source = Path(tmp) / "model.stl"
+            source.write_text("solid mock\nendsolid mock\n", encoding="ascii")
+
+            def fake_runner(command, **kwargs):
+                return subprocess.CompletedProcess(command, 2)
+
+            with self.assertRaises(RuntimeError) as context:
+                ai_to_print.prepare_ready_to_print_model(
+                    str(source),
+                    slicer_command="fake-slicer {input} {output}",
+                    runner=fake_runner,
+                )
+
+            self.assertIn("切片命令失败", str(context.exception))
 
     def test_add_to_print_queue_rejects_source_model_before_queueing(self):
         with TemporaryDirectory() as tmp:
