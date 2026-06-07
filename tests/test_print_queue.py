@@ -77,11 +77,24 @@ class PrintQueueTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 queue.add(str(source))
 
-    def test_add_persists_supported_model_job(self):
+    def test_add_rejects_source_model_formats_that_need_conversion(self):
         with TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             source = tmp_path / "model.stl"
             source.write_text("solid test\nendsolid test\n", encoding="utf-8")
+            queue = self.make_queue(tmp_path / "queue")
+
+            with self.assertRaises(ValueError) as context:
+                queue.add(str(source))
+
+            self.assertIn("ready-to-print", str(context.exception))
+            self.assertIn(".3mf", str(context.exception))
+
+    def test_add_persists_supported_model_job(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            source = tmp_path / "model.3mf"
+            source.write_text("3mf", encoding="utf-8")
             queue_dir = tmp_path / "queue"
             queue = self.make_queue(queue_dir)
 
@@ -97,8 +110,8 @@ class PrintQueueTests(unittest.TestCase):
     def test_add_does_not_start_queue_by_default(self):
         with TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
-            source = tmp_path / "model.stl"
-            source.write_text("solid test\nendsolid test\n", encoding="utf-8")
+            source = tmp_path / "model.3mf"
+            source.write_text("3mf", encoding="utf-8")
             queue = self.make_queue(tmp_path / "queue")
 
             queue.add(str(source), name="manual start model")

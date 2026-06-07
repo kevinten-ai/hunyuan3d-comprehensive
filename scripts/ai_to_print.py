@@ -12,7 +12,7 @@ AI生成 + 自动打印 完整工作流
     python scripts/ai_to_print.py image ./photo.jpg
 
     # 仅添加到打印队列
-    python scripts/ai_to_print.py add ./model.stl --name "我的模型"
+    python scripts/ai_to_print.py add ./model.3mf --name "我的模型"
 
     # 仅生成模型，不打印
     python scripts/ai_to_print.py text "一只恐龙" --no-print
@@ -29,6 +29,9 @@ from datetime import datetime
 # 项目根目录
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+
+PRINT_READY_EXTENSIONS = ('.3mf', '.gcode', '.bgcode')
+SOURCE_MODEL_EXTENSIONS = ('.stl', '.obj', '.ply', '.glb', '.gltf')
 
 # 尝试导入打印模块
 try:
@@ -215,6 +218,41 @@ def repair_model(model_path: str) -> str:
     return str(fallback_file)
 
 
+def prepare_ready_to_print_model(model_path: str, output_dir: str = None, converter_cls=None) -> str:
+    """
+    Convert source geometry to a file the print queue can start directly.
+
+    Bambu start commands need ready-to-print assets such as 3MF/G-code. Generated
+    STL/OBJ/GLB files are source geometry, so they are converted to 3MF before
+    they reach the queue.
+    """
+    model_file = Path(model_path)
+    ext = model_file.suffix.lower()
+
+    if ext in PRINT_READY_EXTENSIONS:
+        return str(model_file)
+
+    if ext not in SOURCE_MODEL_EXTENSIONS:
+        supported = ', '.join(PRINT_READY_EXTENSIONS + SOURCE_MODEL_EXTENSIONS)
+        raise ValueError(f"不支持的模型格式: {ext}。支持格式: {supported}")
+
+    if converter_cls is None:
+        from scripts.model_converter import ModelConverter
+
+        converter_cls = ModelConverter
+
+    converter_output = output_dir or str(model_file.parent)
+    print(f"\n[打印准备] 转换为 ready-to-print 3MF: {model_file}")
+    converter = converter_cls(output_dir=converter_output)
+    ready_file = converter.to_3mf(str(model_file), f"{model_file.stem}_print_ready")
+    ready_path = Path(ready_file)
+    if not ready_path.exists():
+        raise FileNotFoundError(f"转换后的 3MF 文件不存在: {ready_path}")
+
+    print(f"[打印准备] 已生成: {ready_path}")
+    return str(ready_path)
+
+
 def add_to_print_queue(queue: PrintQueue, model_path: str, name: str = None):
     """
     添加到打印队列
@@ -234,7 +272,8 @@ def add_to_print_queue(queue: PrintQueue, model_path: str, name: str = None):
         return None
 
     try:
-        job_id = queue.add(model_path, name=name or Path(model_path).stem)
+        ready_path = prepare_ready_to_print_model(model_path)
+        job_id = queue.add(ready_path, name=name or Path(model_path).stem)
         print(f"[打印] 任务已添加: {job_id}")
         return job_id
     except Exception as e:
@@ -286,7 +325,7 @@ def main():
   python scripts/ai_to_print.py image ./photo.jpg
 
   # 仅添加到打印队列
-  python scripts/ai_to_print.py add ./model.stl --name "我的模型"
+  python scripts/ai_to_print.py add ./model.3mf --name "我的模型"
 
   # 仅生成，不打印
   python scripts/ai_to_print.py text "一只恐龙" --no-print

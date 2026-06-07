@@ -110,6 +110,25 @@ class ReleaseDocsTests(unittest.TestCase):
 
                 self.assertEqual(found, [])
 
+    def test_auto_print_examples_use_ready_to_print_files(self):
+        source_model_extensions = (".stl", ".obj", ".amf", ".gltf", ".glb")
+
+        for relative_path in [
+            "README.md",
+            "PRINT_WORKFLOW.md",
+            "bambu_print/README.md",
+            "scripts/auto_print.py",
+        ]:
+            with self.subTest(path=relative_path):
+                content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+                add_examples = re.findall(r"auto_print\.py add[^\r\n]*", content)
+                bad_examples = [
+                    example for example in add_examples
+                    if any(ext in example for ext in source_model_extensions)
+                ]
+
+                self.assertEqual(bad_examples, [])
+
 
 if __name__ == "__main__":
     unittest.main()

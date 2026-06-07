@@ -148,12 +148,14 @@ python scripts/auto_print.py check-config
 
 ```powershell
 python scripts/auto_print.py discover
-python scripts/auto_print.py add outputs/demo/demo.stl --name demo
+python scripts/auto_print.py add models/converted/demo.3mf --name demo
 python scripts/auto_print.py list
 python scripts/auto_print.py start
 python scripts/auto_print.py status
 python scripts/auto_print.py watch
 ```
+
+打印队列只接收 ready-to-print 文件，例如 `.3mf`、`.gcode` 或 `.bgcode`。`outputs/demo/demo.stl` 这类源模型需要先通过 Bambu Studio 切片，或用本仓库的转换脚本生成 `.3mf` 后再入队。
 
 注意: `add` 只入队，不会默认连接或启动打印机；需要显式运行 `start`。
 `config`、`check-config`、`ai_to_print.py` 和 `continuous_print.py` 使用同一套本地配置 preflight。

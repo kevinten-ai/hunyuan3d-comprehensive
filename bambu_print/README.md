@@ -8,7 +8,7 @@
 - **打印队列管理** - 支持队列添加、暂停、继续、取消
 - **实时进度监控** - 支持回调函数和状态监控
 - **持久化存储** - 队列和配置自动保存
-- **多文件格式支持** - STL, OBJ, 3MF, AMF, GLTF, GLB
+- **Ready-to-print 队列** - 直接打印队列接收 3MF, G-code, Bambu binary G-code；源模型需先转换或切片
 
 ## 当前实现边界
 
@@ -43,7 +43,7 @@ python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_AC
 python scripts/auto_print.py check-config
 
 # 添加打印任务
-python scripts/auto_print.py add ./model.stl --name "我的模型"
+python scripts/auto_print.py add ./model.3mf --name "我的模型"
 
 # 启动打印
 python scripts/auto_print.py start
@@ -65,7 +65,7 @@ queue = PrintQueue(
 )
 
 # 添加任务
-queue.add("./model.stl", name="我的模型")
+queue.add("./model.3mf", name="我的模型")
 
 # 注册回调
 def on_complete(job):
@@ -158,7 +158,7 @@ queue = PrintQueue(
 #### 任务对象
 
 ```python
-job = queue.add("./model.stl", name="我的模型", priority=5)
+job = queue.add("./model.3mf", name="我的模型", priority=5)
 # job.id: str       # 任务ID
 # job.name: str      # 任务名称
 # job.status: str    # queued, printing, completed, failed
@@ -186,7 +186,7 @@ python scripts/auto_print.py check-config
 python scripts/auto_print.py discover
 
 # 添加任务
-python scripts/auto_print.py add ./model.stl --name demo --priority 1
+python scripts/auto_print.py add ./model.3mf --name demo --priority 1
 
 # 查看队列
 python scripts/auto_print.py list
@@ -261,7 +261,7 @@ python scripts/auto_print.py clear --force
 
 ### 文件上传失败
 
-拓竹打印机可能需要先通过 Bambu Studio 或 SD 卡导入文件。自动上传功能可能因固件版本而异；如果 HTTP 上传失败，`send_file()` 会返回 `False`，并且不会把该文件记录为可启动打印的远程文件。
+拓竹打印机可能需要先通过 Bambu Studio 或 SD 卡导入文件。打印队列只接收 ready-to-print 文件，例如 `.3mf`、`.gcode` 或 `.bgcode`；STL/OBJ/GLB 等源模型需要先转换或切片。自动上传功能可能因固件版本而异；如果 HTTP 上传失败，`send_file()` 会返回 `False`，并且不会把该文件记录为可启动打印的远程文件。
 
 ### MQTT 连接被拒绝
 

@@ -99,9 +99,11 @@ python scripts/auto_print.py config --host 192.168.1.100 --access-code YOUR_CODE
 添加任务只会入队，不会自动连接或启动打印机:
 
 ```powershell
-python scripts/auto_print.py add outputs/demo/demo.stl --name demo
+python scripts/auto_print.py add models/converted/demo.3mf --name demo
 python scripts/auto_print.py list
 ```
+
+打印队列只接收 ready-to-print 文件，例如 `.3mf`、`.gcode` 或 `.bgcode`。`outputs/demo/demo.stl` 这类源模型需要先通过 Bambu Studio 切片，或用本仓库的转换脚本生成 `.3mf` 后再入队。
 
 显式启动队列:
 

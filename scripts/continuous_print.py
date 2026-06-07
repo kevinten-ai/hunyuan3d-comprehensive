@@ -340,8 +340,14 @@ class ContinuousPrinter:
             return None
 
         try:
-            job_id = self.print_queue.add(
+            from scripts.ai_to_print import prepare_ready_to_print_model
+
+            ready_path = prepare_ready_to_print_model(
                 model_path,
+                output_dir=str(Path(model_path).parent),
+            )
+            job_id = self.print_queue.add(
+                ready_path,
                 name=name or Path(model_path).stem
             )
             logger.info(f"[队列] 已添加: {job_id}")

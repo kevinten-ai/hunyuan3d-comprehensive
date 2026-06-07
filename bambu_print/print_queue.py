@@ -22,6 +22,9 @@ from datetime import datetime
 from .printer_client import BambuPrinterClient, ConnectionType, PrinterStatus
 
 
+PRINT_READY_EXTENSIONS = ('.3mf', '.gcode', '.bgcode')
+
+
 class QueueStatus(Enum):
     """队列状态"""
     IDLE = "idle"           # 空闲
@@ -84,7 +87,7 @@ class PrintQueue:
         )
 
         # 添加任务
-        queue.add("model.stl", name="我的模型")
+        queue.add("model.3mf", name="我的模型")
 
         # 启动队列
         queue.start()
@@ -253,9 +256,12 @@ class PrintQueue:
 
         # 验证文件格式
         ext = Path(filepath).suffix.lower()
-        supported = ['.stl', '.obj', '.3mf', '.amf', '.gltf', '.glb']
-        if ext not in supported:
-            raise ValueError(f"不支持的文件格式: {ext}，支持: {', '.join(supported)}")
+        if ext not in PRINT_READY_EXTENSIONS:
+            supported = ', '.join(PRINT_READY_EXTENSIONS)
+            raise ValueError(
+                f"不支持的打印文件格式: {ext}。打印队列只接受 ready-to-print 文件: {supported}。"
+                "请先用 Bambu Studio 或 scripts/model_converter.py 转换/切片。"
+            )
 
         job_id = str(uuid.uuid4())[:8]
         job = QueuedJob(

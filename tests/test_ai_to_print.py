@@ -58,6 +58,74 @@ class AiToPrintTests(unittest.TestCase):
 
             self.assertTrue(Path(result).exists())
 
+    def test_prepare_ready_to_print_model_keeps_ready_file(self):
+        with TemporaryDirectory() as tmp:
+            source = Path(tmp) / "model.3mf"
+            source.write_text("ready", encoding="ascii")
+
+            class FakeConverter:
+                def __init__(self, output_dir=None):
+                    raise AssertionError("ready files should not be converted")
+
+            result = ai_to_print.prepare_ready_to_print_model(
+                str(source),
+                converter_cls=FakeConverter,
+            )
+
+            self.assertEqual(result, str(source))
+
+    def test_prepare_ready_to_print_model_converts_source_model_to_3mf(self):
+        with TemporaryDirectory() as tmp:
+            source = Path(tmp) / "model.stl"
+            source.write_text("solid mock\nendsolid mock\n", encoding="ascii")
+            converted = Path(tmp) / "converted" / "model_print_ready.3mf"
+
+            class FakeConverter:
+                def __init__(self, output_dir=None):
+                    self.output_dir = Path(output_dir)
+
+                def to_3mf(self, input_path, output_name=None):
+                    self.output_dir.mkdir(parents=True, exist_ok=True)
+                    self.assert_input = input_path
+                    converted.write_text("ready", encoding="ascii")
+                    return converted
+
+            result = ai_to_print.prepare_ready_to_print_model(
+                str(source),
+                output_dir=str(converted.parent),
+                converter_cls=FakeConverter,
+            )
+
+            self.assertEqual(result, str(converted))
+
+    def test_add_to_print_queue_queues_converted_ready_file(self):
+        with TemporaryDirectory() as tmp:
+            source = Path(tmp) / "model.stl"
+            source.write_text("solid mock\nendsolid mock\n", encoding="ascii")
+            converted = Path(tmp) / "model_print_ready.3mf"
+            converted.write_text("ready", encoding="ascii")
+
+            class FakeQueue:
+                def __init__(self):
+                    self.added_path = None
+
+                def add(self, path, name=None):
+                    self.added_path = path
+                    return "job-1"
+
+            queue = FakeQueue()
+
+            with patch.object(
+                ai_to_print,
+                "prepare_ready_to_print_model",
+                return_value=str(converted),
+            ) as prepare:
+                result = ai_to_print.add_to_print_queue(queue, str(source), "demo")
+
+            self.assertEqual(result, "job-1")
+            self.assertEqual(queue.added_path, str(converted))
+            prepare.assert_called_once_with(str(source))
+
     def test_setup_printer_rejects_template_config(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
