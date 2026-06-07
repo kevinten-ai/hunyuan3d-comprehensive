@@ -116,14 +116,14 @@ def batch_generate_from_folder(folder_path: str, output_base: str = None):
     folder = Path(folder_path)
     if not folder.exists():
         print(f"错误: 文件夹不存在 {folder}")
-        return
+        return 1
 
     image_exts = ['.png', '.jpg', '.jpeg', '.webp']
     images = [f for f in folder.iterdir() if f.suffix.lower() in image_exts]
 
     if not images:
-        print(f"在 {folder} 中未找到图片")
-        return
+        print(f"错误: 在 {folder} 中未找到图片")
+        return 1
 
     output_base = output_base or f'./outputs/batch_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
 
@@ -138,6 +138,7 @@ def batch_generate_from_folder(folder_path: str, output_base: str = None):
             print(f"  错误: {e}")
 
     print(f"\n[OK] 批量生成完成，共 {len(images)} 个模型")
+    return 0
 
 
 def main():
@@ -163,15 +164,22 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == 'text':
-        text_to_3d(args.prompt, args.output, args.lite, args.dry_run, args.save_memory)
-    elif args.command == 'image':
-        image_to_3d(args.image, args.output, args.quality, args.dry_run)
-    elif args.command == 'batch':
-        batch_generate_from_folder(args.folder, args.output)
-    else:
-        parser.print_help()
+    try:
+        if args.command == 'text':
+            text_to_3d(args.prompt, args.output, args.lite, args.dry_run, args.save_memory)
+            return 0
+        elif args.command == 'image':
+            image_to_3d(args.image, args.output, args.quality, args.dry_run)
+            return 0
+        elif args.command == 'batch':
+            return batch_generate_from_folder(args.folder, args.output)
+        else:
+            parser.print_help()
+            return 0
+    except RuntimeError as e:
+        print(f"错误: {e}")
+        return 1
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

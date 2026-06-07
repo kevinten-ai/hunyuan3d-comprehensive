@@ -76,6 +76,8 @@ python scripts/hunyuan_quick.py text "a small robot" --dry-run --lite
 python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --dry-run --quality lite
 ```
 
+`hunyuan_quick.py` 在真实后端命令失败、批量目录不存在或批量目录没有图片时会返回非 0，并输出普通错误信息。
+
 ### 真实文字生成
 
 ```powershell

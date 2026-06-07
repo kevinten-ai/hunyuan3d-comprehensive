@@ -18,7 +18,7 @@
 | Model collection | Implemented and tested | `scripts/model_collector.py`; isolated add/export test, CLI failure return-code tests, and `MODEL_COLLECTOR_MODELS_DIR` override | Real model library curation |
 | Bambu printer queue | Implemented queue layer | `bambu_print/print_queue.py`; tests verify default manual start, status serialization, and CLI failure return codes; `scripts/auto_print.py config/check-config` validates local config fields without connecting | Real printer validation |
 | Bambu MQTT commands | Partially implemented | `bambu_print/printer_client.py`; local tests verify status parsing and `project_file` command payload construction | Protocol validation against a real Bambu printer |
-| Hunyuan command bridge | Implemented wrapper | `scripts/hunyuan_quick.py`, `scripts/hunyuan2_image.py`; dry-run verified | Real generation requires weights/hardware |
+| Hunyuan command bridge | Implemented wrapper | `scripts/hunyuan_quick.py`, `scripts/hunyuan2_image.py`; dry-run and local failure return-code paths verified | Real generation requires weights/hardware |
 | Full AI-to-print | Explicit modes | `scripts/ai_to_print.py` uses `--mock` for demo and `--run-generator` for real commands; printer config preflight rejects template config | Real generator and printer validation |
 | Continuous generation and print | Explicit modes | `scripts/continuous_print.py` uses `--mock` for demo and `--run-generator` for real commands; printer config preflight rejects template config | Real generator and printer validation |
 | Claude crab batch prompts | Command builder verified | `scripts/generate_claude_crabs.py`; `--list` verified | Real Hunyuan3D-1 generation requires weights/hardware |

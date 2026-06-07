@@ -7,6 +7,7 @@ Run these from the repository root:
 ```powershell
 python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
+python -m unittest tests.test_hunyuan_quick -v
 python -m unittest tests.test_model_converter_cli -v
 python -m unittest tests.test_model_collector_cli tests.test_model_collector -v
 Hunyuan3D-1\venv\Scripts\python.exe -m pip check
@@ -37,6 +38,8 @@ The `auto_print.py config` and `auto_print.py check-config` commands validate th
 `scripts/model_collector.py` supports `MODEL_COLLECTOR_MODELS_DIR` for isolated local model-library roots. The CLI returns nonzero for unknown commands, missing required arguments, and missing export targets.
 
 `scripts/model_converter.py` returns nonzero for unknown commands, missing required arguments, and missing input files, and reports those user errors without a Python traceback.
+
+`scripts/hunyuan_quick.py` returns nonzero for real backend command failures and invalid batch folders while keeping dry-run command construction testable without model weights.
 
 ## External Checks
 

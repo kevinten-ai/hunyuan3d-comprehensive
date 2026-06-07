@@ -1,5 +1,6 @@
 import sys
 import unittest
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -47,6 +48,26 @@ class HunyuanQuickTests(unittest.TestCase):
         self.assertTrue(result["dry_run"])
         self.assertIsNone(result["returncode"])
         self.assertIn("--text_prompt", result["command"])
+
+    def test_main_returns_nonzero_without_traceback_when_generation_fails(self):
+        stdout = StringIO()
+
+        with patch.object(sys, "argv", ["hunyuan_quick.py", "text", "a cup"]), \
+                patch.object(hunyuan_quick, "text_to_3d", side_effect=RuntimeError("backend failed")), \
+                patch("sys.stdout", new=stdout):
+            self.assertEqual(hunyuan_quick.main(), 1)
+
+        output = stdout.getvalue()
+        self.assertIn("错误", output)
+        self.assertNotIn("Traceback", output)
+
+    def test_batch_missing_folder_returns_nonzero(self):
+        stdout = StringIO()
+
+        with patch("sys.stdout", new=stdout):
+            self.assertEqual(hunyuan_quick.batch_generate_from_folder("definitely-missing-folder"), 1)
+
+        self.assertIn("文件夹不存在", stdout.getvalue())
 
 
 if __name__ == "__main__":
