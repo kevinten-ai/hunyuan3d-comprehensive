@@ -3,6 +3,9 @@
 *.pt
 *.pth
 *.ckpt
+*.bin
+*.onnx
+*.engine
 
 # 模型目录
 tencent/

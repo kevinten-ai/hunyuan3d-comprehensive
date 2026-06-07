@@ -36,6 +36,8 @@ Some local directories are useful runtime assets but should stay out of Git:
 - `.env`
 - `config/printer.json`
 
+Repository hygiene tests verify these local-only paths plus common large model formats (`*.safetensors`, `*.ckpt`, `*.bin`, `*.onnx`, `*.engine`) stay ignored while tracked templates remain visible.
+
 ## Current Priority
 
 1. Validate real Hunyuan3D generation on a machine with model weights and compatible GPU.

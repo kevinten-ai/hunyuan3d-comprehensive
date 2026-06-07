@@ -87,3 +87,4 @@ See `docs/VERIFICATION.md` for the detailed command list and expected nonzero lo
 - ComfyUI quick test and browser launch have passed, but example workflow execution still needs model/input asset alignment.
 - Bambu Lab MQTT upload/start/pause/resume/stop still require a real printer, valid `config/printer.json`, local network access, and protocol validation.
 - Generated outputs, queue state, model weights, virtual environments, `.env`, and `config/printer.json` should remain untracked.
+- Repository hygiene tests verify that common large model artifacts such as `.safetensors`, `.ckpt`, `.bin`, `.onnx`, generated GLB/3MF outputs, local ComfyUI assets, printer config, and `.env` remain ignored while tracked templates stay visible.
