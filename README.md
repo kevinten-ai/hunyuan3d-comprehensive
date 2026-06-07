@@ -266,7 +266,7 @@ python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 - `Hunyuan3D-1/venv/`
 - 模型权重，如 `*.safetensors`、`*.pt`、`*.ckpt`
 - 临时输出目录，如 `outputs/text_*`、`outputs/img_*`、`outputs/continuous/`
-- 本地模型库产物，如 `models/collection/`、`models/slicer-input/`、`models/converted/`
+- 本地模型工作区产物，如 `models/raw/`、`models/collection/`、`models/slicer-input/`、`models/converted/`
 - 打印队列和日志
 
 ## 许可证

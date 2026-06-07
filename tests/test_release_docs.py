@@ -219,6 +219,7 @@ class ReleaseDocsTests(unittest.TestCase):
         content = (PROJECT_ROOT / "models" / "README.md").read_text(encoding="utf-8")
 
         for expected in [
+            "models/raw/",
             "models/collection/",
             "models/slicer-input/",
             "models/converted/",

@@ -24,10 +24,13 @@ outputs/**/*.glb
 outputs/**/*.stl
 outputs/**/*.obj
 outputs/**/*.3mf
+outputs/**/*.gcode
+outputs/**/*.bgcode
 outputs/text_*/
 outputs/img_*/
 outputs/continuous/
 models/ready-to-print/
+models/raw/
 models/slicer-input/
 models/converted/
 models/collection/

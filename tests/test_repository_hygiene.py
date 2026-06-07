@@ -28,8 +28,12 @@ class RepositoryHygieneTests(unittest.TestCase):
             "ComfyUI/models/diffusion_models/hy3dgen/model.safetensors",
             "models/checkpoints/pytorch_model.bin",
             "models/checkpoints/model.onnx",
+            "models/raw/text-to-3d/generated.stl",
+            "models/raw/image-to-3d/generated.glb",
             "models/collection/demo/demo_model.stl",
             "outputs/validation/hunyuan2_image/validation.glb",
+            "outputs/validation/hunyuan2_image/plate.gcode",
+            "outputs/validation/hunyuan2_image/plate.bgcode",
             "models/converted/validation.3mf",
             "models/slicer-input/demo.stl",
         ]

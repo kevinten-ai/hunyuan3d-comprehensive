@@ -6,13 +6,14 @@
 
 ```text
 models/
+├── raw/             # 原始生成或临时导入的源模型草稿
 ├── collection/      # model_collector.py 管理的本地模型库副本，按类别归档
 ├── slicer-input/    # 导出给 Bambu Studio / OrcaSlicer 打开的源模型
 ├── converted/       # GLB/STL/OBJ 转换后的中间文件，例如普通几何 3MF
 └── README.md        # 本说明文件
 ```
 
-`models/collection/`、`models/slicer-input/`、`models/converted/` 都是本地工作目录，已经在 `.gitignore` 中忽略。旧的 `models/ready-to-print/` 路径也保持忽略，仅用于兼容历史本地文件，不再作为推荐目录。
+`models/raw/`、`models/collection/`、`models/slicer-input/`、`models/converted/` 都是本地工作目录，已经在 `.gitignore` 中忽略。旧的 `models/ready-to-print/` 路径也保持忽略，仅用于兼容历史本地文件，不再作为推荐目录。
 
 ## 文件格式边界
 
