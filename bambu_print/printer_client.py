@@ -270,10 +270,9 @@ class BambuPrinterClient:
         try:
             import requests
         except ImportError:
-            print("警告: requests库未安装，将跳过文件上传")
-            print("请手动将文件放到打印机的SD卡或通过Bambu Studio上传")
-            self._print_files[remote_name] = filepath
-            return True
+            print("错误: requests库未安装，无法上传文件")
+            print("请安装 requirements-print.txt，或手动通过 Bambu Studio 上传后显式指定打印文件。")
+            return False
 
         try:
             # 拓竹打印机的文件上传API
@@ -293,13 +292,10 @@ class BambuPrinterClient:
                 return True
             else:
                 print(f"文件上传失败: {response.status_code}")
-                # 即使HTTP失败，也将文件记录到本地
-                self._print_files[remote_name] = filepath
-                return True
+                return False
         except Exception as e:
             print(f"文件上传异常: {e}")
-            self._print_files[remote_name] = filepath
-            return True
+            return False
 
     def start_print(self, filename: str = None) -> bool:
         """

@@ -13,7 +13,7 @@
 ## 当前实现边界
 
 - MQTT 是当前实现的主要控制方式。
-- HTTP 上传逻辑是实验性路径，仍需要真实设备验证。
+- HTTP 上传逻辑是实验性路径，仍需要真实设备验证；上传失败会返回 `False`，不会把文件缓存为可启动打印的远程文件。
 - `add` 只添加任务到队列，不会默认启动打印；请显式调用 `start()` 或运行 `python scripts/auto_print.py start`。
 
 ## 安装
@@ -102,7 +102,7 @@ client = BambuPrinterClient(
 | `disconnect()` | 断开连接 |
 | `is_connected()` | 检查连接状态 |
 | `get_status()` | 获取打印机状态 |
-| `send_file(filepath)` | 发送文件到打印机 |
+| `send_file(filepath)` | 发送文件到打印机；只有 HTTP 200/201 会返回成功并缓存远程文件名 |
 | `start_print(filename)` | 开始打印 |
 | `pause_print()` | 暂停打印 |
 | `resume_print()` | 恢复打印 |
@@ -261,7 +261,7 @@ python scripts/auto_print.py clear --force
 
 ### 文件上传失败
 
-拓竹打印机需要先通过 Bambu Studio 或 SD 卡导入文件。自动上传功能可能因固件版本而异。
+拓竹打印机可能需要先通过 Bambu Studio 或 SD 卡导入文件。自动上传功能可能因固件版本而异；如果 HTTP 上传失败，`send_file()` 会返回 `False`，并且不会把该文件记录为可启动打印的远程文件。
 
 ### MQTT 连接被拒绝
 
