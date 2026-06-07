@@ -164,6 +164,20 @@ class ReleaseDocsTests(unittest.TestCase):
 
                 self.assertEqual(bad_examples, [])
 
+    def test_print_workflow_routes_source_models_through_slicing_before_queueing(self):
+        content = (PROJECT_ROOT / "PRINT_WORKFLOW.md").read_text(encoding="utf-8")
+
+        self.assertIn("Bambu Studio", content)
+        self.assertIn("OrcaSlicer", content)
+        self.assertIn("ready-to-print", content)
+        self.assertNotIn(
+            "STL/GLB/OBJ 模型文件\n"
+            "  -> 模型修复或检查\n"
+            "  -> 添加到 Bambu 打印队列",
+            content,
+        )
+        self.assertNotIn("真实生成并添加到队列", content)
+
     def test_release_docs_do_not_claim_source_models_auto_become_print_ready(self):
         forbidden_claims = [
             "source models are converted to queue-ready 3MF",

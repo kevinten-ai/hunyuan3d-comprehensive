@@ -8,8 +8,9 @@
 文字/图片输入
   -> Hunyuan3D 真实生成或 mock 演示
   -> STL/GLB/OBJ 模型文件
-  -> 模型修复或检查
-  -> 添加到 Bambu 打印队列
+  -> 模型修复或检查，必要时转换为 slicer-input 3MF
+  -> Bambu Studio / OrcaSlicer 切片导出 ready-to-print 文件
+  -> 添加 ready-to-print 文件到 Bambu 打印队列
   -> 显式启动队列
   -> 打印机 MQTT 状态监控
 ```
@@ -45,7 +46,7 @@ python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --quality lite
 python scripts/ai_to_print.py text "a rabbit" --no-print --mock
 ```
 
-## 3. 修复和转换模型
+## 3. 修复、转换和切片模型
 
 查看模型信息:
 
@@ -66,6 +67,8 @@ python scripts/model_converter.py convert outputs/demo/demo.glb stl demo_from_gl
 python scripts/model_converter.py convert outputs/demo/demo.glb 3mf demo_from_glb
 python scripts/glb_to_3mf.py outputs/demo/demo.glb models/converted/demo_from_glb.3mf
 ```
+
+这些转换结果是给切片器打开的源模型或 slicer-input 3MF，不是 Bambu 队列可直接打印的文件。入队前需要用 Bambu Studio 或 OrcaSlicer 切片导出 Bambu/OrcaSlicer 项目 `.3mf`、`.gcode` 或 `.bgcode`。
 
 ## 4. 配置打印机
 
@@ -94,7 +97,7 @@ python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_AC
 
 `config/printer.json` 包含本地设备信息，不能提交到 Git。
 
-## 5. 添加和启动打印
+## 5. 添加和启动 ready-to-print 文件
 
 添加任务只会入队，不会自动连接或启动打印机:
 
@@ -126,12 +129,14 @@ python scripts/auto_print.py watch
 python scripts/ai_to_print.py text "a rabbit" --mock
 ```
 
-真实生成并添加到队列:
+真实生成并尝试切片后入队:
 
 ```powershell
 python scripts/ai_to_print.py text "a rabbit" --run-generator
 python scripts/ai_to_print.py image Hunyuan3D-2/assets/demo.png --run-generator
 ```
+
+去掉 `--no-print` 时，AI-to-print 仍只会把 ready-to-print 文件加入队列。生成器输出 STL/OBJ/GLB 或普通几何 3MF 时，需要先配置并验证 `BAMBU_SLICER_COMMAND`，或手动用 Bambu Studio / OrcaSlicer 切片导出后再入队。
 
 如果只想生成和修复模型，不加入打印队列:
 
