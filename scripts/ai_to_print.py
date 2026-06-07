@@ -225,6 +225,13 @@ def _suggest_sliced_output_path(model_file: Path, output_dir: str = None) -> Pat
     output_ext = os.environ.get(SLICER_OUTPUT_EXT_ENV, ".3mf")
     if not output_ext.startswith("."):
         output_ext = "." + output_ext
+    output_ext = output_ext.lower()
+    if output_ext not in PRINT_READY_EXTENSIONS:
+        supported = ', '.join(PRINT_READY_EXTENSIONS)
+        raise ValueError(
+            f"{SLICER_OUTPUT_EXT_ENV} 必须是可验证的打印输出格式: {supported}。"
+            f"当前值: {output_ext}"
+        )
 
     target_dir = Path(output_dir) if output_dir else model_file.parent
     target_dir.mkdir(parents=True, exist_ok=True)

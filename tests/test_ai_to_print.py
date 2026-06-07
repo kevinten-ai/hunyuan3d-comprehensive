@@ -149,6 +149,25 @@ class AiToPrintTests(unittest.TestCase):
 
             self.assertIn("切片命令失败", str(context.exception))
 
+    def test_prepare_ready_to_print_model_rejects_source_slicer_output_extension(self):
+        with TemporaryDirectory() as tmp:
+            source = Path(tmp) / "model.stl"
+            source.write_text("solid mock\nendsolid mock\n", encoding="ascii")
+
+            def fake_runner(command, **kwargs):
+                raise AssertionError("invalid slicer output extensions should fail before running")
+
+            with patch.dict(ai_to_print.os.environ, {"BAMBU_SLICER_OUTPUT_EXT": ".stl"}), \
+                    self.assertRaises(ValueError) as context:
+                ai_to_print.prepare_ready_to_print_model(
+                    str(source),
+                    slicer_command="fake-slicer {input} {output}",
+                    runner=fake_runner,
+                )
+
+            self.assertIn("BAMBU_SLICER_OUTPUT_EXT", str(context.exception))
+            self.assertIn(".gcode", str(context.exception))
+
     def test_add_to_print_queue_rejects_source_model_before_queueing(self):
         with TemporaryDirectory() as tmp:
             source = Path(tmp) / "model.stl"
