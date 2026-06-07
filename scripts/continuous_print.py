@@ -583,8 +583,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  # 单次生成 + 打印
-  python scripts/continuous_print.py generate "一只可爱的兔子"
+  # 本地演示: 只生成 mock STL，不打印
+  python scripts/continuous_print.py generate --prompt "一只可爱的兔子" --mock --no-print
+
+  # 单次真实生成 + 打印
+  python scripts/continuous_print.py generate --prompt "一只可爱的兔子" --run-generator
 
   # 监控文件夹模式
   python scripts/continuous_print.py watch --folder ./watch_folder

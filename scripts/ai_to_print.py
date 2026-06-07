@@ -373,17 +373,17 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  # 文字生成 + 打印
-  python scripts/ai_to_print.py text "一只可爱的兔子"
+  # 本地演示: 只生成 mock STL，不打印
+  python scripts/ai_to_print.py text "一只可爱的兔子" --mock --no-print
 
-  # 图片生成 + 打印
-  python scripts/ai_to_print.py image ./photo.jpg
+  # 真实图片生成: 调用 Hunyuan3D-2，但不自动打印
+  python scripts/ai_to_print.py image ./photo.jpg --run-generator --no-print
 
   # 仅添加到打印队列
   python scripts/ai_to_print.py add ./bambu_project.3mf --name "我的模型"
 
-  # 仅生成，不打印
-  python scripts/ai_to_print.py text "一只恐龙" --no-print
+  # 真实文字生成 + 打印
+  python scripts/ai_to_print.py text "一只恐龙" --run-generator
 
   # 查看队列
   python scripts/ai_to_print.py status

@@ -21,6 +21,20 @@ def write_bambu_project_3mf(path: Path):
 
 
 class AiToPrintTests(unittest.TestCase):
+    def test_help_examples_are_explicit_about_mock_or_real_generation(self):
+        result = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve().parents[1] / "scripts" / "ai_to_print.py"), "--help"],
+            cwd=str(Path(__file__).resolve().parents[1]),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--mock", result.stdout)
+        self.assertIn("--run-generator", result.stdout)
+        self.assertNotIn('python scripts/ai_to_print.py text "一只可爱的兔子"\n', result.stdout)
+
     def test_text_generation_requires_mock_mode_for_placeholder(self):
         with TemporaryDirectory() as tmp:
             result = ai_to_print.generate_text_to_3d("a rabbit", output_dir=tmp, mock=False)

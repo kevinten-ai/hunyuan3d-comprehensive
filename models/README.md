@@ -32,7 +32,7 @@ python scripts/model_converter.py info outputs/demo/demo.stl
 python scripts/glb_to_3mf.py outputs/validation/hunyuan2_image/validation.glb models/converted/validation_hunyuan2.3mf
 
 # 将本地模型加入模型库，并导出到 slicer-input
-python scripts/model_collector.py add path\to\robot.stl --category toys --name robot
+python scripts/model_collector.py add path\to\robot.stl toys robot
 python scripts/model_collector.py export toys_robot_20260607_120000
 
 # 添加已经切片导出的 ready-to-print 文件

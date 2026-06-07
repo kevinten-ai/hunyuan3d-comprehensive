@@ -22,6 +22,20 @@ def write_bambu_project_3mf(path: Path):
 
 
 class ContinuousPrintTests(unittest.TestCase):
+    def test_help_examples_use_supported_generate_arguments(self):
+        result = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve().parents[1] / "scripts" / "continuous_print.py"), "--help"],
+            cwd=str(Path(__file__).resolve().parents[1]),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("generate --prompt", result.stdout)
+        self.assertIn("--mock", result.stdout)
+        self.assertNotIn('generate "一只可爱的兔子"', result.stdout)
+
     def test_text_generation_does_not_mock_by_default(self):
         with TemporaryDirectory() as tmp:
             printer = ContinuousPrinter(output_dir=tmp, auto_start=False)

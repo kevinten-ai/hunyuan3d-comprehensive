@@ -235,6 +235,8 @@ class ReleaseDocsTests(unittest.TestCase):
             "ready-to-print/         # 可直接打印的模型",
             "**STL**: 拓竹打印机原生支持",
             "本目录用于存储和管理可打印的3D模型文件",
+            "--category",
+            "--name robot",
         ]:
             self.assertNotIn(stale_claim, content)
 
