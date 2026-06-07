@@ -344,6 +344,10 @@ class BambuPrinterClient:
             print("未连接到打印机")
             return False
 
+        if not filename and not self._print_files:
+            print("没有可打印文件，请先上传文件或显式指定打印文件名")
+            return False
+
         command = self._build_start_print_command(filename)
         return self._send_mqtt_command(command)
 

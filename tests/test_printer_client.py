@@ -179,6 +179,15 @@ class PrinterClientTests(unittest.TestCase):
 
         self.assertEqual(command["print"]["param"], "cached.3mf")
 
+    def test_start_print_returns_false_without_filename_or_uploaded_cache(self):
+        client = self.make_client()
+        client._mqtt_connected = True
+
+        with patch.object(client, "_send_mqtt_command") as send_command:
+            self.assertFalse(client.start_print())
+
+        send_command.assert_not_called()
+
     def test_send_file_caches_remote_file_only_after_successful_upload(self):
         client = self.make_client()
 

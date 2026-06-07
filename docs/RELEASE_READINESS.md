@@ -9,7 +9,7 @@
   - `--run-generator` is required before scripts call real Hunyuan3D generation.
   - root Hunyuan command failures return nonzero with ordinary error output.
 - Bambu queue `add` persists jobs without auto-connecting or starting the printer; upload failures mark jobs failed without sending a print-start command; current-job cancel/pause/resume/stop state changes only proceed after the matching printer command succeeds; `clear` does not discard queued work when stopping the active print fails.
-- Bambu client tests cover default status fields, MQTT connection callback success/failure/timeout handling, MQTT report parsing, queue status serialization, HTTP upload success/failure return values, and local `project_file` command payload construction.
+- Bambu client tests cover default status fields, MQTT connection callback success/failure/timeout handling, MQTT report parsing, queue status serialization, HTTP upload success/failure return values, empty-file start rejection, and local `project_file` command payload construction.
 - `model_converter.py` returns nonzero for local CLI input failures and reports missing files without tracebacks.
 - `auto_print.py` returns nonzero for local add/remove/cancel/stop/clear failure paths instead of reporting a false-success CLI exit.
 - `ai_to_print.py` returns nonzero when generation does not produce a model, while `--mock --no-print` remains a local success path.
