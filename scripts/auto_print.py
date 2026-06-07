@@ -161,11 +161,12 @@ def cmd_discover(args):
 
     if not printers:
         print("未发现打印机，请确保打印机在同一网络且已开启")
-        return
+        return 1
 
     print(f"\n发现 {len(printers)} 台打印机:")
     for i, p in enumerate(printers, 1):
         print(f"  {i}. IP: {p['ip']} - {p.get('name', 'Unknown')}")
+    return 0
 
 
 def get_queue() -> Optional[PrintQueue]:

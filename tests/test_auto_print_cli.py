@@ -74,6 +74,29 @@ class AutoPrintCliTests(unittest.TestCase):
                 patch("sys.stdout", new=StringIO()):
             self.assertEqual(auto_print.main(), 1)
 
+    def test_discover_returns_nonzero_when_no_printers_found(self):
+        stdout = StringIO()
+
+        with patch.object(auto_print, "discover_printers", return_value=[]), \
+                patch.object(sys, "argv", ["auto_print.py", "discover"]), \
+                patch("sys.stdout", new=stdout):
+            self.assertEqual(auto_print.main(), 1)
+
+        self.assertIn("未发现打印机", stdout.getvalue())
+
+    def test_discover_returns_zero_when_printer_is_found(self):
+        stdout = StringIO()
+        printers = [{"ip": "192.0.2.25", "name": "Bambu Lab"}]
+
+        with patch.object(auto_print, "discover_printers", return_value=printers), \
+                patch.object(sys, "argv", ["auto_print.py", "discover"]), \
+                patch("sys.stdout", new=stdout):
+            self.assertEqual(auto_print.main(), 0)
+
+        output = stdout.getvalue()
+        self.assertIn("发现 1 台打印机", output)
+        self.assertIn("192.0.2.25", output)
+
 
 if __name__ == "__main__":
     unittest.main()
