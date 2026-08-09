@@ -119,6 +119,18 @@ def _write_mock_stl(output_dir: str) -> str:
     return str(model_file)
 
 
+def _generation_output_dir(output_dir: str, prefix: str) -> str:
+    if output_dir:
+        path = Path(output_dir).expanduser()
+        if not path.is_absolute():
+            path = PROJECT_ROOT / path
+    else:
+        path = PROJECT_ROOT / "outputs" / f'{prefix}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
+    path = path.resolve()
+    path.mkdir(parents=True, exist_ok=True)
+    return str(path)
+
+
 def generate_text_to_3d(prompt: str, output_dir: str = None, mock: bool = False,
                         run_generator: bool = False, lite: bool = True):
     """
@@ -133,8 +145,7 @@ def generate_text_to_3d(prompt: str, output_dir: str = None, mock: bool = False,
     """
     print(f"\n[AI] 文字生成: {prompt}")
 
-    output = output_dir or f'./outputs/text_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
-    os.makedirs(output, exist_ok=True)
+    output = _generation_output_dir(output_dir, "text")
 
     if mock:
         model_file = _write_mock_stl(output)
@@ -170,8 +181,7 @@ def generate_image_to_3d(image_path: str, output_dir: str = None, quality: str =
     """
     print(f"\n[AI] 图片生成: {image_path}")
 
-    output = output_dir or f'./outputs/img_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
-    os.makedirs(output, exist_ok=True)
+    output = _generation_output_dir(output_dir, "img")
 
     if mock:
         model_file = _write_mock_stl(output)

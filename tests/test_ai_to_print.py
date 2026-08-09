@@ -66,6 +66,32 @@ class AiToPrintTests(unittest.TestCase):
             self.assertTrue(result.endswith("model.stl"))
             self.assertTrue(Path(result).exists())
 
+    def test_text_generation_runs_shared_backend_and_finds_obj(self):
+        with TemporaryDirectory() as tmp:
+            def fake_generate(prompt, output_dir, lite, dry_run):
+                Path(output_dir, "mesh_vertex_colors.obj").write_text(
+                    "v 0 0 0\n",
+                    encoding="ascii",
+                )
+
+            with patch(
+                "scripts.hunyuan_quick.text_to_3d",
+                side_effect=fake_generate,
+            ) as generate:
+                result = ai_to_print.generate_text_to_3d(
+                    "a rabbit",
+                    output_dir=tmp,
+                    run_generator=True,
+                )
+
+            self.assertEqual(Path(result).name, "mesh_vertex_colors.obj")
+            generate.assert_called_once_with(
+                "a rabbit",
+                output_dir=str(Path(tmp).resolve()),
+                lite=True,
+                dry_run=False,
+            )
+
     def test_image_generation_requires_mock_mode_for_placeholder(self):
         with TemporaryDirectory() as tmp:
             result = ai_to_print.generate_image_to_3d("input.png", output_dir=tmp, mock=False)

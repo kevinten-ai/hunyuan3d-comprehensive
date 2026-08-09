@@ -31,6 +31,8 @@ outputs/text_*/
 outputs/img_*/
 outputs/continuous/
 outputs/validation/
+outputs/integration/
+outputs/docker-mount-smoke/
 models/ready-to-print/
 models/raw/
 models/slicer-input/

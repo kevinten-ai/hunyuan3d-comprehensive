@@ -8,7 +8,7 @@ This handoff summarizes the current delivery state for the local Hunyuan3D + Com
 - Root generation scripts avoid false success: dry runs only print commands, mock mode creates tiny local STL files for demos, and real generation requires explicit `--run-generator`.
 - Local CLI failure paths return nonzero for Hunyuan quick generation, AI-to-print no-model flows, continuous print no-model flows, model conversion input errors, model collection input errors, Claude crab generation gates, and Bambu queue failures.
 - Printer configuration has a local preflight gate. Template values in `config/printer.json.example` are rejected before queue creation or network attempts.
-- `scripts/system_preflight.py` provides a read-only aggregate gate for Hunyuan weights, ComfyUI workflow assets, slicer configuration, and printer configuration. Real Hunyuan3D-2, ComfyUI, and Bambu CLI smoke runs are recorded separately below.
+- `scripts/system_preflight.py` provides a non-destructive aggregate gate for Hunyuan weights, ComfyUI workflow assets, slicer configuration, and printer configuration. It may start a disposable Docker CUDA rasterization probe, but it does not run model inference, slicing, or printer commands.
 - Current release evidence is maintained in `docs/VERIFICATION.md` and `docs/RELEASE_READINESS.md`.
 
 ## Install And Run
@@ -26,7 +26,7 @@ Use `python scripts/system_preflight.py` without `--allow-incomplete` as a stric
 
 `requirements-print.txt` covers the root printer, queue, conversion, and repair helpers (`paho-mqtt`, `numpy`, `trimesh`, and `numpy-stl`). FTPS upload uses the system `curl` executable so the access code can be supplied through standard input instead of process arguments. Hunyuan3D-1 and Hunyuan3D-2 keep their upstream dependency instructions in their own folders.
 
-Edit `.env` only for local overrides such as `HUNYUAN3D1_PYTHON`, `HUNYUAN3D2_MODEL_PATH`, `MODEL_COLLECTOR_MODELS_DIR`, and `BAMBU_PRINTER_CA_CERT`. Root orchestration scripts auto-load `.env` from the repository root without overriding variables already set in the shell. When the CA path is omitted, the printer client also checks `resources/cert/printer.cer` next to `BAMBU_SLICER_EXE`. The tracked template is `config/env.example`. Do not commit `.env`.
+Edit `.env` only for local overrides such as `HUNYUAN3D1_BACKEND`, `HUNYUAN3D1_PYTHON`, `HUNYUAN3D2_MODEL_PATH`, `MODEL_COLLECTOR_MODELS_DIR`, and `BAMBU_PRINTER_CA_CERT`. `auto` prefers the verified Docker Hunyuan3D-1 backend; `HUNYUAN3D1_PYTHON` applies to explicit native mode. Root scripts auto-load `.env` without overriding shell variables. When the CA path is omitted, the printer client also checks `resources/cert/printer.cer` next to `BAMBU_SLICER_EXE`. Do not commit `.env`.
 
 Set `BAMBU_SLICER_EXE` and `BAMBU_SLICER_TEMPLATE` to Bambu Studio and a known-good project profile, then use `python scripts/bambu_slicer_bridge.py "{input}" "{output}"` as `BAMBU_SLICER_COMMAND`. The bridge auto-scales, orients, arranges, slices, and validates its project `.3mf`. AI-to-print and continuous-print only continue queueing after that ready-file validation passes.
 
@@ -53,7 +53,7 @@ python scripts/continuous_print.py generate --prompt "a rabbit" --no-print --moc
 Real generation uses explicit backend execution:
 
 ```powershell
-python scripts/hunyuan_quick.py text "a small robot" --lite
+python scripts/hunyuan_quick.py text "a small robot"
 python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --quality lite
 python scripts/ai_to_print.py text "a rabbit" --run-generator --no-print
 ```
@@ -80,7 +80,7 @@ python scripts/auto_print.py watch
 
 The raw queue accepts only ready-to-print files such as `.gcode`, `.bgcode`, or Bambu/OrcaSlicer project `.3mf` files with slice metadata. Source geometry such as STL/OBJ/GLB and generic geometry 3MF files must be converted for a slicer and then sliced/exported before queueing; the AI-to-print and continuous-print entry points reject source geometry before direct queueing.
 
-For automated source-model-to-print handoff, configure the bundled bridge from `config/env.example`. Its template provides printer/process/filament settings while the input provides the model geometry. A real local smoke run created a validated P1S project with embedded plate G-code.
+For automated source-model-to-print handoff, configure the bundled bridge from `config/env.example`. Its template provides printer/process/filament settings while the input provides the model geometry. A real root workflow generated a 90,000-face Hunyuan OBJ, repaired it to STL, and created a validated P1S project with embedded plate G-code.
 
 AI-to-print and continuous-print entry points reuse the same printer preflight before automatic queue creation.
 
@@ -99,7 +99,7 @@ See `docs/VERIFICATION.md` for the detailed command list and expected nonzero lo
 
 ## Remaining Risks
 
-- Hunyuan3D-1 weights are complete and the Torch CUDA `sm_120` path is verified, but real text-to-3D still stops at the missing native `nvdiffrast` dependency. Windows needs CUDA Toolkit and MSVC before compiling it from source.
+- Hunyuan3D-1 Docker generation and root orchestration are verified on `sm_120`; native Windows mode remains optional and still needs a locally compatible `nvdiffrast` toolchain. Generated meshes can remain non-watertight and need slicer inspection before physical printing.
 - Hunyuan3D-2 has passed a low-step local validation, but full-quality settings still need broader runtime and output-quality validation.
 - ComfyUI quick test, all 13 workflow asset references, and a real low-step API graph have passed; full-quality graphs remain a performance and visual-quality follow-up.
 - Bambu Studio is visibly connected to a real P1S with AMS, but the repository discovery command found no printer. The repository's FTPS/MQTT protocol construction and failure paths are unit-tested, while direct upload/start/pause/resume/stop still require a valid local `config/printer.json`, enabled LAN Only or Developer Mode, local network access, and real-device validation.

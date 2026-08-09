@@ -7,6 +7,7 @@ Hunyuan3D 推理快捷脚本集
 import os
 import sys
 import argparse
+import shutil
 import subprocess
 from pathlib import Path
 from datetime import datetime
@@ -19,6 +20,9 @@ from scripts.local_env import load_project_env
 
 
 load_project_env(PROJECT_ROOT)
+
+HUNYUAN1_ROOT = PROJECT_ROOT / "Hunyuan3D-1"
+TEXT_BACKENDS = ("auto", "native", "docker")
 
 
 def _default_output(prefix: str) -> str:
@@ -35,6 +39,24 @@ def hunyuan1_python_executable() -> str:
         return str(venv_python)
 
     return sys.executable
+
+
+def resolve_text_backend(backend: str = None) -> str:
+    """Resolve the Hunyuan3D-1 backend without starting a model."""
+    selected = (backend or os.environ.get("HUNYUAN3D1_BACKEND", "auto")).strip().lower()
+    if selected not in TEXT_BACKENDS:
+        choices = ", ".join(TEXT_BACKENDS)
+        raise ValueError(f"HUNYUAN3D1_BACKEND 必须是: {choices}；当前值: {selected}")
+    if selected != "auto":
+        return selected
+
+    if (
+        shutil.which("docker")
+        and (HUNYUAN1_ROOT / "Dockerfile").is_file()
+        and (HUNYUAN1_ROOT / "docker-compose.yml").is_file()
+    ):
+        return "docker"
+    return "native"
 
 
 def _run_command(command: list[str], cwd: Optional[Path], dry_run: bool, mode: str) -> dict:
@@ -57,11 +79,35 @@ def _run_command(command: list[str], cwd: Optional[Path], dry_run: bool, mode: s
     return result
 
 
-def build_text_command(prompt: str, output_dir: str, lite: bool = False, save_memory: bool = False) -> list[str]:
+def build_text_command(
+    prompt: str,
+    output_dir: str,
+    lite: bool = False,
+    save_memory: bool = False,
+    backend: str = None,
+) -> list[str]:
     """Build a real Hunyuan3D-1 text-to-3D command."""
+    selected = resolve_text_backend(backend)
+    if selected == "docker":
+        output_path = Path(output_dir).expanduser().resolve()
+        return [
+            "docker",
+            "compose",
+            "run",
+            "--rm",
+            "--volume",
+            f"{output_path}:/output",
+            "hunyuan3d",
+            "python",
+            "scripts/text_to_3d_low_vram.py",
+            prompt,
+            "--output",
+            "/output",
+        ]
+
     command = [
         hunyuan1_python_executable(),
-        str(PROJECT_ROOT / "Hunyuan3D-1" / "main.py"),
+        str(HUNYUAN1_ROOT / "main.py"),
         "--text_prompt",
         prompt,
         "--save_folder",
@@ -91,16 +137,32 @@ def build_image_command(image_path: str, output_dir: str, quality: str = 'standa
     return command
 
 
-def text_to_3d(prompt: str, output_dir: str = None, lite: bool = False,
-               dry_run: bool = False, save_memory: bool = False) -> dict:
+def text_to_3d(
+    prompt: str,
+    output_dir: str = None,
+    lite: bool = False,
+    dry_run: bool = False,
+    save_memory: bool = False,
+    backend: str = None,
+) -> dict:
     """文字生成3D模型"""
     print(f"[Text-to-3D] 提示词: {prompt}")
 
-    output = output_dir or _default_output("text")
+    output = str(Path(output_dir or _default_output("text")).expanduser().resolve())
+    Path(output).mkdir(parents=True, exist_ok=True)
     print(f"输出目录: {output}")
 
-    command = build_text_command(prompt, output, lite=lite, save_memory=save_memory)
-    return _run_command(command, cwd=PROJECT_ROOT / "Hunyuan3D-1", dry_run=dry_run, mode="text")
+    selected = resolve_text_backend(backend)
+    command = build_text_command(
+        prompt,
+        output,
+        lite=lite,
+        save_memory=save_memory,
+        backend=selected,
+    )
+    result = _run_command(command, cwd=HUNYUAN1_ROOT, dry_run=dry_run, mode="text")
+    result["backend"] = selected
+    return result
 
 
 def image_to_3d(image_path: str, output_dir: str = None, quality: str = 'standard',
@@ -155,6 +217,12 @@ def main():
     txt_parser.add_argument('--output', '-o', help='输出目录')
     txt_parser.add_argument('--lite', action='store_true', help='使用Lite版本')
     txt_parser.add_argument('--save-memory', action='store_true', help='启用Hunyuan3D-1省显存模式')
+    txt_parser.add_argument(
+        '--backend',
+        choices=TEXT_BACKENDS,
+        default=None,
+        help='文字生成后端；默认读取 HUNYUAN3D1_BACKEND，自动模式优先 Docker',
+    )
     txt_parser.add_argument('--dry-run', action='store_true', help='只打印将要执行的命令，不运行模型')
 
     img_parser = subparsers.add_parser('image', help='图片生成3D')
@@ -171,7 +239,14 @@ def main():
 
     try:
         if args.command == 'text':
-            text_to_3d(args.prompt, args.output, args.lite, args.dry_run, args.save_memory)
+            text_to_3d(
+                args.prompt,
+                args.output,
+                args.lite,
+                args.dry_run,
+                args.save_memory,
+                backend=args.backend,
+            )
             return 0
         elif args.command == 'image':
             image_to_3d(args.image, args.output, args.quality, args.dry_run)

@@ -66,7 +66,8 @@ docker compose run --rm hunyuan3d python scripts/text_to_3d_low_vram.py "a small
 copy config\env.example .env
 ```
 
-- `HUNYUAN3D1_PYTHON`: 指定 Hunyuan3D-1 使用的 Python，可覆盖默认的 `Hunyuan3D-1/venv/Scripts/python.exe`。
+- `HUNYUAN3D1_BACKEND`: `auto`、`docker` 或 `native`；`auto` 在 Docker 可用时优先使用已验证的低显存容器。
+- `HUNYUAN3D1_PYTHON`: 仅在 `native` 后端下指定 Hunyuan3D-1 Python，可覆盖默认的项目虚拟环境。
 - `HUNYUAN3D2_MODEL_PATH`: 指定 Hunyuan3D-2 本地模型快照或 Hugging Face repo；未传 `--model-path` 时由 `scripts/hunyuan2_image.py` 使用。
 - `MODEL_COLLECTOR_MODELS_DIR`: 指定 `scripts/model_collector.py` 使用的模型库根目录，便于把演示或测试集合放到仓库外。
 - `BAMBU_SLICER_EXE`: 指向 Bambu Studio 可执行文件。
@@ -101,11 +102,10 @@ python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --dry-run --qu
 ### 真实文字生成
 
 ```powershell
-cd Hunyuan3D-1
-docker compose run --rm hunyuan3d python scripts/text_to_3d_low_vram.py "a small robot" --output outputs/docker-low-vram
+python scripts/hunyuan_quick.py text "a small robot"
 ```
 
-该入口把文生图、去背景、多视图和网格重建放在独立进程中，适用于 16 GB 显卡。默认生成 `mesh_vertex_colors.obj`；增加 `--texture-mapping` 可生成 GLB。
+自动后端会在 Docker 可用时调用 `Hunyuan3D-1/scripts/text_to_3d_low_vram.py`，把文生图、去背景、多视图和网格重建放在独立进程中，适用于 16 GB 显卡。可用 `--backend docker` 或 `--backend native` 显式选择。默认生成 `mesh_vertex_colors.obj`。
 
 ### 真实图片生成
 
@@ -138,6 +138,8 @@ python scripts/ai_to_print.py image Hunyuan3D-2/assets/demo.png --run-generator 
 `continuous_print.py generate --no-print` 在没有生成模型时也会返回非 0；加 `--mock` 是本地连续生成演示成功路径。
 提示词列表的本地批量演示也需要显式跳过打印，例如 `python scripts/continuous_print.py prompts --file prompts.txt --delay 0 --mock --no-print`。
 生成得到的 STL/OBJ/GLB 或普通几何 3MF 不能直接进 Bambu 队列。配置 `BAMBU_SLICER_EXE`、`BAMBU_SLICER_TEMPLATE` 和示例中的 `BAMBU_SLICER_COMMAND` 后，桥接脚本会自动缩放、定向、摆盘、切片，并只返回通过 ready-to-print 校验的 Bambu 工程 `.3mf`。
+
+本机已从该根入口完成一次 25 步文生图、50 步多视图、90,000 面 OBJ、修复 STL 和 Bambu Studio 自动切片；生成的 P1S 项目 3MF 通过切片元数据校验。生成网格仍非 watertight，必须保留切片器检查和实物质量评估。
 
 ## Bambu Lab 打印机配置
 

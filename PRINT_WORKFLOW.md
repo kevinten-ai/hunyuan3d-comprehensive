@@ -29,7 +29,7 @@ python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --dry-run --qu
 真实文字生成:
 
 ```powershell
-python scripts/hunyuan_quick.py text "a small robot" --lite
+python scripts/hunyuan_quick.py text "a small robot"
 ```
 
 真实图片生成:
@@ -38,7 +38,7 @@ python scripts/hunyuan_quick.py text "a small robot" --lite
 python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --quality lite
 ```
 
-这些命令需要 Hunyuan3D 依赖、模型权重和可用硬件。
+文字入口的 `auto` 后端在 Docker 可用时优先使用 CUDA 13 低显存容器；可通过 `--backend docker` 或 `--backend native` 显式选择。两类命令都需要对应模型权重和可用硬件。
 
 演示端到端流程可以使用 mock 模式:
 

@@ -54,6 +54,31 @@ class ContinuousPrintTests(unittest.TestCase):
             self.assertTrue(Path(result).exists())
             self.assertEqual(Path(result).suffix, ".stl")
 
+    def test_text_generation_runs_shared_backend_and_finds_obj(self):
+        with TemporaryDirectory() as tmp:
+            printer = ContinuousPrinter(
+                output_dir=tmp,
+                auto_start=False,
+                run_generator=True,
+            )
+
+            def fake_generate(prompt, output_dir, lite, dry_run):
+                Path(output_dir, "mesh_vertex_colors.obj").write_text(
+                    "v 0 0 0\n",
+                    encoding="ascii",
+                )
+
+            with patch(
+                "scripts.hunyuan_quick.text_to_3d",
+                side_effect=fake_generate,
+            ) as generate:
+                result = printer.generate_from_text("a rabbit")
+
+            self.assertEqual(Path(result).name, "mesh_vertex_colors.obj")
+            generate.assert_called_once()
+            self.assertEqual(generate.call_args.args[0], "a rabbit")
+            self.assertTrue(Path(generate.call_args.kwargs["output_dir"]).is_absolute())
+
     def test_image_generation_does_not_run_by_default(self):
         with TemporaryDirectory() as tmp:
             printer = ContinuousPrinter(output_dir=tmp, auto_start=False)

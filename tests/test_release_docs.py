@@ -90,6 +90,7 @@ class ReleaseDocsTests(unittest.TestCase):
     def test_env_template_documents_external_slicer_hook(self):
         content = (PROJECT_ROOT / "config" / "env.example").read_text(encoding="utf-8")
 
+        self.assertIn("HUNYUAN3D1_BACKEND=auto", content)
         self.assertIn("BAMBU_SLICER_COMMAND", content)
         self.assertIn("BAMBU_SLICER_OUTPUT_EXT", content)
         self.assertIn("auto-load .env", content)
@@ -97,6 +98,25 @@ class ReleaseDocsTests(unittest.TestCase):
         self.assertIn("{output}", content)
         self.assertIn("{output_dir}", content)
         self.assertNotRegex(content, r"<[^>\r\n]+>")
+
+    def test_release_docs_describe_verified_hunyuan1_docker_backend(self):
+        stale_claims = [
+            "Root AI-to-print commands do not yet select the Docker backend automatically",
+            "Hunyuan3D-1 `nvdiffrast` and local printer configuration remain blocked",
+            "real text-to-3D still stops at the missing native `nvdiffrast` dependency",
+        ]
+        for relative_path in [
+            "README.md",
+            "docs/HANDOFF.md",
+            "docs/PROJECT_STATUS.md",
+            "docs/RELEASE_READINESS.md",
+            "docs/VERIFICATION.md",
+        ]:
+            with self.subTest(path=relative_path):
+                content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+                self.assertIn("HUNYUAN3D1_BACKEND", content)
+                for stale_claim in stale_claims:
+                    self.assertNotIn(stale_claim, content)
 
     def test_release_docs_explain_local_env_auto_loading(self):
         for relative_path in [

@@ -53,6 +53,12 @@ class Hunyuan1DockerTests(unittest.TestCase):
         self.assertIn("fast-simplification==0.1.13", requirements)
         self.assertIn("./weights/rembg:/root/.u2net", compose)
 
+        mesh_source = (
+            PROJECT_ROOT / "Hunyuan3D-1" / "svrm" / "ldm" / "models" / "svrm.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("simplification_target = target_face_count", mesh_source)
+        self.assertNotIn("target_face_count // 2", mesh_source)
+
 
 if __name__ == "__main__":
     unittest.main()

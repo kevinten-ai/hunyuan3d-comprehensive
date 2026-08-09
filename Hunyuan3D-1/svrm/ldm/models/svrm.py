@@ -193,7 +193,7 @@ class SVRMModel(torch.nn.Module):
                 faces=faces_refine,
                 process=True,
             )
-            simplification_target = max(4, target_face_count // 2)
+            simplification_target = target_face_count
             for _ in range(3):
                 if len(mesh.faces) <= target_face_count:
                     break
@@ -204,6 +204,12 @@ class SVRMModel(torch.nn.Module):
                 mesh = simplified
                 if len(mesh.faces) >= previous_face_count:
                     break
+                if len(mesh.faces) > target_face_count:
+                    ratio = target_face_count / len(mesh.faces)
+                    simplification_target = max(
+                        4,
+                        int(simplification_target * ratio * 0.95),
+                    )
             vtx_refine = np.asarray(mesh.vertices, dtype=np.float32)
             faces_refine = np.asarray(mesh.faces, dtype=np.int64)
             print(
