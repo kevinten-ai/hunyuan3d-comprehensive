@@ -84,6 +84,8 @@ class PrinterClientTests(unittest.TestCase):
         status = PrinterStatus()
 
         self.assertEqual(status.remaining_time, 0)
+        self.assertEqual(status.print_error, 0)
+        self.assertEqual(status.hms, [])
 
     def test_parse_status_report_updates_print_fields(self):
         client = self.make_client()
@@ -123,6 +125,8 @@ class PrinterClientTests(unittest.TestCase):
                     "bed_temper": 55.5,
                     "nozzle_temper": 220.25,
                     "gcode_file": "plate.gcode.3mf",
+                    "print_error": 7,
+                    "hms": [{"attr": 0x03003100, "code": 0x00010001}],
                 }
             }
         )
@@ -136,6 +140,25 @@ class PrinterClientTests(unittest.TestCase):
         self.assertEqual(status.bed_temp, 55.5)
         self.assertEqual(status.nozzle_temp, 220.25)
         self.assertEqual(status.model_info, "plate.gcode.3mf")
+        self.assertEqual(status.print_error, 7)
+        self.assertEqual(
+            status.hms,
+            [{"attr": 0x03003100, "code": 0x00010001}],
+        )
+
+    def test_status_report_sets_initial_status_event(self):
+        client = self.make_client()
+        message = SimpleNamespace(
+            topic="device/SN000/report",
+            payload=json.dumps(
+                {"print": {"gcode_state": "RUNNING", "mc_percent": 31}}
+            ).encode("utf-8"),
+        )
+
+        client._on_mqtt_message(None, None, message)
+
+        self.assertTrue(client._status_update_event.is_set())
+        self.assertEqual(client.get_status().print_status, "printing")
 
     def test_connect_waits_for_mqtt_success_callback(self):
         fake_client = FakeMqttClient(connect_result=0, connect_rc=0)

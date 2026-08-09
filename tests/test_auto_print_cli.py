@@ -58,6 +58,40 @@ class FakeQueue:
             return self.control_result
 
 
+class FakePrinter:
+    def __init__(self, connect_result=True):
+        self.connect_result = connect_result
+        self.disconnected = False
+
+    def connect(self):
+        return self.connect_result
+
+    def disconnect(self):
+        self.disconnected = True
+
+
+class FakeStatusQueue:
+    def __init__(self, connect_result=True):
+        self.printer = FakePrinter(connect_result)
+
+    def get_status(self):
+        return {
+            "status": "idle",
+            "queue_length": 0,
+            "current_job": None,
+            "printer": {
+                "print_status": "printing",
+                "progress": 31.0,
+                "layer": 71,
+                "total_layers": 250,
+                "bed_temp": 55.0,
+                "nozzle_temp": 220.0,
+                "print_error": 0,
+                "hms": [{"attr": 0x03003100, "code": 0x00010001}],
+            },
+        }
+
+
 class AutoPrintCliTests(unittest.TestCase):
     def test_help_uses_repo_root_copy_safe_examples(self):
         stdout = StringIO()
@@ -182,6 +216,28 @@ class AutoPrintCliTests(unittest.TestCase):
                     self.assertEqual(auto_print.main(), 1)
 
                 self.assertIn("失败", stdout.getvalue())
+
+    def test_status_connects_and_prints_live_hms(self):
+        queue = FakeStatusQueue()
+        stdout = StringIO()
+
+        with patch.object(auto_print, "get_queue", return_value=queue), \
+                patch.object(sys, "argv", ["auto_print.py", "status"]), \
+                patch("sys.stdout", new=stdout):
+            self.assertEqual(auto_print.main(), 0)
+
+        output = stdout.getvalue()
+        self.assertIn("printing", output)
+        self.assertIn("0300310000010001", output)
+        self.assertTrue(queue.printer.disconnected)
+
+    def test_status_returns_nonzero_when_printer_connection_fails(self):
+        queue = FakeStatusQueue(connect_result=False)
+
+        with patch.object(auto_print, "get_queue", return_value=queue), \
+                patch.object(sys, "argv", ["auto_print.py", "status"]), \
+                patch("sys.stdout", new=StringIO()):
+            self.assertEqual(auto_print.main(), 1)
 
 
 if __name__ == "__main__":

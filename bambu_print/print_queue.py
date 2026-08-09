@@ -582,6 +582,8 @@ class PrintQueue:
                 'nozzle_temp': printer_status.nozzle_temp,
                 'remaining_time': printer_status.remaining_time,
                 'ip_address': printer_status.ip_address,
+                'print_error': printer_status.print_error,
+                'hms': list(printer_status.hms),
             }
         }
 

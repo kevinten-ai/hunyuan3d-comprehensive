@@ -285,7 +285,14 @@ def cmd_status(args):
     if queue is None:
         return 1
 
-    status = queue.get_status()
+    if not queue.printer.connect():
+        print("错误: 无法连接打印机读取实时状态")
+        return 1
+
+    try:
+        status = queue.get_status()
+    finally:
+        queue.printer.disconnect()
 
     print(f"\n队列状态: {status['status']}")
     print(f"队列长度: {status['queue_length']}")
@@ -305,6 +312,15 @@ def cmd_status(args):
     print(f"  层: {printer['layer']}/{printer['total_layers']}")
     print(f"  热床温度: {printer['bed_temp']}°C")
     print(f"  喷嘴温度: {printer['nozzle_temp']}°C")
+    print(f"  打印错误码: {printer['print_error']}")
+    if printer['hms']:
+        print("  HMS:")
+        for item in printer['hms']:
+            attr = int(item.get('attr', 0))
+            code = int(item.get('code', 0))
+            print(f"    - {attr:08X}{code:08X}")
+
+    return 0
 
 
 def cmd_history(args):

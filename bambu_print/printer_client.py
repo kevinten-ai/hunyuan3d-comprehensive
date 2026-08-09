@@ -20,7 +20,7 @@ import threading
 import time
 import unicodedata
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Callable, Dict, Any, List
 from pathlib import Path
 from urllib.parse import quote, urlparse
@@ -63,6 +63,8 @@ class PrinterStatus:
     model_info: str = ""
     ip_address: str = ""
     remaining_time: int = 0  # 秒
+    print_error: int = 0
+    hms: List[Dict[str, Any]] = field(default_factory=list)
 
 
 class BambuPrinterClient:
@@ -127,6 +129,7 @@ class BambuPrinterClient:
         self._mqtt_client = None
         self._mqtt_connected = False
         self._mqtt_connect_event = threading.Event()
+        self._status_update_event = threading.Event()
         self._status_callbacks: List[Callable] = []
         self._last_status: PrinterStatus = PrinterStatus()
         self._sequence_lock = threading.Lock()
@@ -220,6 +223,12 @@ class BambuPrinterClient:
                 self._parse_status_report(payload)
                 self._resolve_command_response(payload)
 
+                print_data = payload.get('print')
+                if isinstance(print_data, dict) and (
+                    'gcode_state' in print_data or 'state' in print_data
+                ):
+                    self._status_update_event.set()
+
                 # 通知回调
                 for callback in self._status_callbacks:
                     callback(self._last_status)
@@ -268,6 +277,13 @@ class BambuPrinterClient:
                 self._last_status.nozzle_temp = float(print_data['nozzle_temper'])
             if print_data.get('gcode_file'):
                 self._last_status.model_info = str(print_data['gcode_file'])
+            if 'print_error' in print_data:
+                self._last_status.print_error = int(print_data['print_error'])
+            if 'hms' in print_data:
+                self._last_status.hms = [
+                    dict(item) for item in (print_data.get('hms') or [])
+                    if isinstance(item, dict)
+                ]
 
         if 'device' in data:
             device_data = data['device']
@@ -335,7 +351,10 @@ class BambuPrinterClient:
 
             # P1 printers emit delta status objects. Request one full snapshot
             # after connecting, then rely on normal incremental reports.
+            self._status_update_event.clear()
             self.request_full_status()
+            if not self._status_update_event.wait(min(float(self.timeout), 5.0)):
+                print("[MQTT] 警告: 未在超时前收到完整打印机状态快照")
             return True
         except Exception as e:
             print(f"[MQTT] 连接异常: {e}")
