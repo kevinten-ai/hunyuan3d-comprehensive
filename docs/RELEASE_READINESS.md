@@ -52,7 +52,7 @@ python scripts/model_converter.py convert outputs/validation/hunyuan2_image/vali
 python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb 3mf validation_hunyuan2
 python scripts/glb_to_3mf.py outputs/validation/hunyuan2_image/validation.glb models/converted/validation_hunyuan2.3mf
 python scripts/model_converter.py info models/converted/validation_hunyuan2.3mf
-# Expected printer config gate until config/printer.json exists:
+# Requires an ignored local config/printer.json; this machine passes and reads live status:
 python scripts/auto_print.py check-config
 python scripts/auto_print.py status
 # Expected printer discovery gate when no printer is found:
@@ -68,7 +68,7 @@ python scripts/bambu_slicer_bridge.py outputs/demo/demo.stl outputs/validation/b
 
 These items still require environment or hardware changes before the full end-to-end system can be called complete:
 
-- Aggregate preflight currently reports 4 ready areas and 1 blocked area. Both Hunyuan engines, ComfyUI, and the Bambu slicer bridge are ready; local printer configuration remains blocked. Run without `--allow-incomplete` for the strict nonzero release gate.
+- Aggregate preflight currently reports 5 ready areas and 0 blocked areas: both Hunyuan engines, ComfyUI, the Bambu slicer bridge, and local printer configuration are ready.
 
 - Hunyuan3D-1 environment:
   - `Hunyuan3D-1/venv` now passes `pip check` and `main.py --help`;
@@ -93,17 +93,17 @@ These items still require environment or hardware changes before the full end-to
   - the generated Hunyuan3D-1 STL also produced a validated P1S project, estimated at about 34.3 minutes and 7.95 g filament;
   - a known-good local project template remains required for printer, process, and filament settings.
 - Bambu Lab printer:
-  - local screenshots confirm Bambu Studio is connected to a real P1S with AMS and show a completed print, but this is not repository protocol validation;
-  - a passive check confirmed `bambu-studio.exe` has an established LAN session and the device is reachable on MQTT/TLS 8883 and implicit FTPS 990, but UDP discovery still found no printer;
-  - `config/printer.json` is absent;
+  - an ignored local `config/printer.json` passes validation and Developer Mode is confirmed;
+  - authenticated MQTT/TLS `pushall` returned the active P1S print state, progress, layers, temperatures, error code, and HMS data;
+  - authenticated implicit FTPS uploaded the generated sliced project as `codex_gear_validation.3mf`;
   - local config preflight is available through `python scripts/auto_print.py config/check-config` and validates Developer Mode confirmation, AMS mapping, timelapse, and timeout values;
   - `scripts/ai_to_print.py` and `scripts/continuous_print.py` reuse the local preflight before queue creation;
   - the repository client uses implicit FTPS on TCP 990 for upload and MQTT/TLS on TCP 8883 with `device/{serial}/report` and `device/{serial}/request` for status, commands, and acknowledgements;
   - Bambu Lab describes Developer Mode MQTT/FTP as unsupported interfaces, so compatibility can change with firmware;
-  - FTPS upload and MQTT start/pause/resume/stop have not been validated against a real printer.
+  - MQTT start/pause/resume/stop remain deferred because a user-started print occupies the plate and HMS `0300310000010001` reports a part-cooling-fan speed/stall warning.
 
 ## Suggested Next Steps
 
-1. Enable LAN Only or Developer Mode, create local `config/printer.json` from `config/printer.json.example`, then validate Bambu FTPS upload and MQTT control commands on the real printer.
-2. Inspect and repair non-watertight generated meshes before physical prints; validate texture/baking output when those optional paths are required.
+1. Clear the occupied build plate and resolve the part-cooling-fan HMS before validating MQTT start/pause/resume/stop on the uploaded generated model.
+2. Inspect the physical generated mesh and validate texture/baking output when those optional paths are required.
 3. Validate full-quality Hunyuan3D-2 and ComfyUI generation settings and visual quality.

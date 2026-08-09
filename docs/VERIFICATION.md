@@ -40,7 +40,7 @@ python scripts/model_converter.py convert outputs/validation/hunyuan2_image/vali
 python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb 3mf validation_hunyuan2
 python scripts/glb_to_3mf.py outputs/validation/hunyuan2_image/validation.glb models/converted/validation_hunyuan2.3mf
 python scripts/model_converter.py info models/converted/validation_hunyuan2.3mf
-# Printer config gate; expected nonzero until config/printer.json exists:
+# Requires an ignored local config/printer.json; this machine passes and reads live status:
 python scripts/auto_print.py check-config
 python scripts/auto_print.py status
 # Printer discovery gate; expected nonzero when no printer is found locally:
@@ -53,7 +53,7 @@ python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-se
 python ComfyUI/main.py --listen 127.0.0.1 --port 8190 --disable-auto-launch
 ```
 
-The `auto_print.py config` and `auto_print.py check-config` commands validate the local JSON fields without connecting to the printer. Without `config/printer.json`, the expected result is a clear message asking the user to configure the printer. The `status`, `start`, and `watch` commands also require a valid local config before they create a queue client. `add`, `remove`, `cancel`, `stop`, and `clear` return nonzero on local failure paths. `scripts/ai_to_print.py` and `scripts/continuous_print.py` reuse the same validation before automatic printing.
+The `auto_print.py config` and `auto_print.py check-config` commands validate the local JSON fields without connecting to the printer. Without `config/printer.json`, the expected result is a clear message asking the user to configure the printer. With valid local config, `status` connects over MQTT, waits for a full snapshot, and reports live error/HMS fields. `start` and `watch` also require valid config before creating a queue client. `add`, `remove`, `cancel`, `stop`, and `clear` return nonzero on local failure paths. `scripts/ai_to_print.py` and `scripts/continuous_print.py` reuse the same validation before automatic printing.
 
 `scripts/model_collector.py` supports `MODEL_COLLECTOR_MODELS_DIR` for isolated local model-library roots. The CLI returns nonzero for unknown commands, missing required arguments, and missing export targets.
 
@@ -78,7 +78,7 @@ These checks require hardware, model weights, or local services that cannot be p
 - Hunyuan3D-1 native mode still requires a locally compatible `nvdiffrast`, but the default Docker backend has passed real generation.
 - Hunyuan3D-2 has passed a low-step run; full-quality generation requires broader runtime and output-quality validation.
 - ComfyUI has passed a low-step Hunyuan3D API graph; full-quality workflows require broader runtime and output-quality validation.
-- Bambu Lab transport/control validation requires printer IP, access code, serial number, enabled LAN Only or Developer Mode, and explicit authorization to perform printer actions.
+- Bambu Lab status and FTPS upload are verified with ignored local credentials; physical start/control validation still requires a clear build plate and a printer without blocking hardware warnings.
 
 ## Current External Gate Findings
 
@@ -110,8 +110,8 @@ python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id=
 - GLB-to-STL and GLB-to-3MF conversion are verified against `outputs/validation/hunyuan2_image/validation.glb` using both `scripts/model_converter.py` and the dedicated `scripts/glb_to_3mf.py` wrapper. The generated `models/converted/validation_hunyuan2.3mf` is readable by `model_converter.py info` and reports watertight output in this local run.
 - ComfyUI quick test exits successfully, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`. All 13 unique workflow references are present. `python scripts/comfyui_hunyuan_smoke.py --start-server --timeout 600` completed a real 5-step API graph and produced a watertight GLB with 2,356 vertices and 5,000 faces.
 - `scripts/bambu_slicer_bridge.py` completed real Bambu Studio CLI slices from both the demo STL and the generated Hunyuan3D-1 STL. The generated-model project passed `is_bambu_project_3mf`, with an estimate of about 34.3 minutes and 7.95 g filament.
-- `python scripts/system_preflight.py --allow-incomplete` now accepts either the native Hunyuan3D-1 runtime or the verified Docker fallback. Missing `config/printer.json` remains the expected local blocker, so strict mode exits 1.
-- Local screenshots confirm Bambu Studio is connected to a real P1S with AMS and show a completed print. A passive socket check confirmed an established `bambu-studio.exe` LAN MQTT/TLS session, and non-authenticating TCP checks passed for ports 8883 and 990 on the same device; UDP discovery still returned no printer. These observations prove hardware reachability, not repository authentication or control. Repository printer validation is pending because `config/printer.json` is not present. The client constructs implicit FTPS uploads without placing the access code in process arguments, uses `device/{serial}/report` and `device/{serial}/request`, parses P1 status fields, requests `pushall`, builds `project_file` and `gcode_file` commands, and waits for matching device results. Real upload and start/pause/resume/stop remain unverified. Bambu Lab describes Developer Mode MQTT/FTP as unsupported interfaces, so firmware changes are a compatibility risk.
+- `python scripts/system_preflight.py --json` now reports 5/5 ready with no known local configuration blocker.
+- With LAN Developer Mode enabled, authenticated MQTT/TLS `pushall` on `device/{serial}/report` and `device/{serial}/request` returned a real active-print snapshot from the P1S, and `auto_print.py status` reproduced that state after the full-snapshot fix. Authenticated implicit FTPS uploaded the generated sliced project as `codex_gear_validation.3mf`. The current machine reports `print_error=0` and HMS `0300310000010001`, which the installed P1S HMS resource identifies as a part-cooling-fan speed/stall warning. A user-started print also occupies the plate, so no repository start command was sent; start/pause/resume/stop remain the physical gate. Bambu Lab describes Developer Mode MQTT/FTP as unsupported interfaces, so firmware changes are a compatibility risk.
 
 ## Release Gate
 
