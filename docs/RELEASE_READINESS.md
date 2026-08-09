@@ -94,7 +94,7 @@ These items still require environment or hardware changes before the full end-to
   - a known-good local project template remains required for printer, process, and filament settings.
 - Bambu Lab printer:
   - local screenshots confirm Bambu Studio is connected to a real P1S with AMS and show a completed print, but this is not repository protocol validation;
-  - `scripts/auto_print.py discover --timeout 3` found no printer even though the Studio process had an established port 8883 session;
+  - a passive check confirmed `bambu-studio.exe` has an established LAN session and the device is reachable on MQTT/TLS 8883 and implicit FTPS 990, but UDP discovery still found no printer;
   - `config/printer.json` is absent;
   - local config preflight is available through `python scripts/auto_print.py config/check-config` and validates Developer Mode confirmation, AMS mapping, timelapse, and timeout values;
   - `scripts/ai_to_print.py` and `scripts/continuous_print.py` reuse the local preflight before queue creation;
