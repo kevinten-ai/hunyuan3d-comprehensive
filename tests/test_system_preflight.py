@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.system_preflight import collect_preflight, summarize
+from scripts.system_preflight import _check_slicer, collect_preflight, summarize
 
 
 class SystemPreflightTests(unittest.TestCase):
@@ -125,6 +125,56 @@ class SystemPreflightTests(unittest.TestCase):
 
             self.assertEqual(hunyuan1.status, "blocked")
             self.assertIn("nvdiffrast", hunyuan1.message)
+
+    def test_bambu_bridge_requires_explicit_executable(self):
+        with TemporaryDirectory() as tmp:
+            template = Path(tmp) / "template.3mf"
+            template.write_bytes(b"template")
+            check = _check_slicer(
+                {
+                    "BAMBU_SLICER_COMMAND": 'python scripts/bambu_slicer_bridge.py "{input}" "{output}"',
+                    "BAMBU_SLICER_OUTPUT_EXT": ".3mf",
+                    "BAMBU_SLICER_TEMPLATE": str(template),
+                }
+            )
+
+            self.assertEqual(check.status, "blocked")
+            self.assertIn("BAMBU_SLICER_EXE", check.message)
+
+    def test_bambu_bridge_requires_existing_template(self):
+        with TemporaryDirectory() as tmp:
+            executable = Path(tmp) / "bambu-studio.exe"
+            executable.write_bytes(b"exe")
+            check = _check_slicer(
+                {
+                    "BAMBU_SLICER_COMMAND": 'python scripts/bambu_slicer_bridge.py "{input}" "{output}"',
+                    "BAMBU_SLICER_OUTPUT_EXT": ".3mf",
+                    "BAMBU_SLICER_EXE": str(executable),
+                    "BAMBU_SLICER_TEMPLATE": str(Path(tmp) / "missing.3mf"),
+                }
+            )
+
+            self.assertEqual(check.status, "blocked")
+            self.assertIn("BAMBU_SLICER_TEMPLATE", check.message)
+
+    def test_bambu_bridge_is_ready_with_existing_inputs(self):
+        with TemporaryDirectory() as tmp:
+            executable = Path(tmp) / "bambu-studio.exe"
+            template = Path(tmp) / "template.3mf"
+            executable.write_bytes(b"exe")
+            template.write_bytes(b"template")
+            check = _check_slicer(
+                {
+                    "BAMBU_SLICER_COMMAND": 'python scripts/bambu_slicer_bridge.py "{input}" "{output}"',
+                    "BAMBU_SLICER_OUTPUT_EXT": ".3mf",
+                    "BAMBU_SLICER_EXE": str(executable),
+                    "BAMBU_SLICER_TEMPLATE": str(template),
+                }
+            )
+
+            self.assertEqual(check.status, "ready")
+            self.assertIn(str(executable), check.evidence)
+            self.assertIn(str(template), check.evidence)
 
     def test_malformed_printer_config_is_reported_without_exception(self):
         with TemporaryDirectory() as tmp:

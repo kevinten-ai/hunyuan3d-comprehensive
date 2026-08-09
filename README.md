@@ -10,12 +10,13 @@ GitHub 仓库: https://github.com/kevinten-ai/hunyuan3d-comprehensive
 
 | 模块 | 当前状态 | 说明 |
 |---|---|---|
-| Hunyuan3D-1 | 已包含源码 | 用于文字生成 3D；真实运行需要权重、CUDA/Python 环境 |
-| Hunyuan3D-2 | 已包含源码 | 用于图片生成 3D；真实运行需要权重、CUDA/Python 环境 |
-| ComfyUI | 本地运行资产 | `ComfyUI/` 是本地目录，不作为仓库代码提交 |
+| Hunyuan3D-1 | 原生依赖阻塞 | 权重和 `sm_120` CUDA 实算已通过；仍缺 Windows `nvdiffrast` 编译工具链 |
+| Hunyuan3D-2 | 低步数实跑通过 | 本地图片生成 GLB 已通过；完整质量参数仍需继续验证 |
+| ComfyUI | 工作流实跑通过 | 13 个工作流资产齐全，5 步 API 图已生成并验证 watertight GLB |
 | 模型转换 | 已实现 | `scripts/model_converter.py` 使用 `trimesh` 转换/修复 STL、OBJ、GLB 等 |
 | 模型收集 | 已实现 | `scripts/model_collector.py` 管理模型库和 slicer-input 导出 |
 | Bambu 打印队列 | 已实现基础层 | `bambu_print/` 管理队列、状态、MQTT 控制命令 |
+| Bambu 自动切片 | 实跑通过 | `scripts/bambu_slicer_bridge.py` 已生成含 G-code 的 P1S 切片工程 |
 | AI 到打印 | 已安全化 | 默认不再模拟成功；真实生成需 `--run-generator`，演示需 `--mock` |
 
 更多状态细节见 [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md)。
@@ -62,6 +63,9 @@ copy config\env.example .env
 - `HUNYUAN3D1_PYTHON`: 指定 Hunyuan3D-1 使用的 Python，可覆盖默认的 `Hunyuan3D-1/venv/Scripts/python.exe`。
 - `HUNYUAN3D2_MODEL_PATH`: 指定 Hunyuan3D-2 本地模型快照或 Hugging Face repo；未传 `--model-path` 时由 `scripts/hunyuan2_image.py` 使用。
 - `MODEL_COLLECTOR_MODELS_DIR`: 指定 `scripts/model_collector.py` 使用的模型库根目录，便于把演示或测试集合放到仓库外。
+- `BAMBU_SLICER_EXE`: 指向 Bambu Studio 可执行文件。
+- `BAMBU_SLICER_TEMPLATE`: 指向已在 Bambu Studio 中验证过的工程 3MF 或导出的 project-settings JSON。
+- `BAMBU_SLICER_COMMAND`: 为 AI-to-print / continuous-print 配置自动切片桥接命令。
 
 根目录脚本会自动加载仓库根目录的 `.env`，但不会覆盖 shell 中已经设置的同名变量。`.env` 只用于本地运行，不能提交到 Git。
 
@@ -125,7 +129,7 @@ python scripts/ai_to_print.py image Hunyuan3D-2/assets/demo.png --run-generator 
 `ai_to_print.py` 和 `continuous_print.py` 会复用同一套本地配置检查；如果 `config/printer.json` 缺失或仍是模板占位值，请求打印的命令会返回非 0，避免把“只生成、未打印”误报为端到端成功。
 `continuous_print.py generate --no-print` 在没有生成模型时也会返回非 0；加 `--mock` 是本地连续生成演示成功路径。
 提示词列表的本地批量演示也需要显式跳过打印，例如 `python scripts/continuous_print.py prompts --file prompts.txt --delay 0 --mock --no-print`。
-生成得到的 STL/OBJ/GLB 或普通几何 3MF 不能直接进 Bambu 队列；要自动衔接打印，需要先配置并验证外部切片器命令 `BAMBU_SLICER_COMMAND`，让它输出 Bambu/OrcaSlicer 项目 `.3mf`、`.gcode` 或 `.bgcode`。`BAMBU_SLICER_OUTPUT_EXT` 只能设置为可验证的打印输出格式；不安全的 output extension 会在切片器执行前被 reject。
+生成得到的 STL/OBJ/GLB 或普通几何 3MF 不能直接进 Bambu 队列。配置 `BAMBU_SLICER_EXE`、`BAMBU_SLICER_TEMPLATE` 和示例中的 `BAMBU_SLICER_COMMAND` 后，桥接脚本会自动缩放、定向、摆盘、切片，并只返回通过 ready-to-print 校验的 Bambu 工程 `.3mf`。
 
 ## Bambu Lab 打印机配置
 
@@ -166,9 +170,17 @@ python scripts/auto_print.py status
 python scripts/auto_print.py watch
 ```
 
-打印队列只接收 ready-to-print 文件，例如 Bambu/OrcaSlicer 项目 `.3mf`、`.gcode` 或 `.bgcode`。`outputs/demo/demo.stl` 这类源模型可以先用本仓库转换脚本生成切片器可打开的 `.3mf`，但仍需要通过 Bambu Studio 或 OrcaSlicer 切片导出后再入队。
+打印队列只接收 ready-to-print 文件，例如 Bambu/OrcaSlicer 项目 `.3mf`、`.gcode` 或 `.bgcode`。可以直接验证自动切片桥接:
 
-如果你已经有可脚本化的切片器命令，可以在 `.env` 或 shell 中配置 `BAMBU_SLICER_COMMAND`。命令模板支持 `{input}`、`{output}`、`{output_dir}` 占位符；`BAMBU_SLICER_OUTPUT_EXT` 的 output extension 必须是 `.3mf`、`.gcode` 或 `.bgcode` 这类 ready-to-print 输出，否则会被 reject。只有生成的文件通过 ready-to-print 校验后，AI-to-print / continuous-print 才会继续入队。
+```powershell
+python scripts/bambu_slicer_bridge.py outputs/demo/demo.stl outputs/demo/demo.gcode.3mf `
+  --slicer-exe "D:\path\to\bambu-studio.exe" `
+  --template "D:\path\to\known-good-project.3mf"
+```
+
+模板提供打印机、喷嘴、层高、耗材和工艺参数；源模型几何仍来自输入文件。命令模板支持 `{input}`、`{output}`、`{output_dir}` 占位符，输出必须通过切片元数据校验后才能继续入队。
+
+`BAMBU_SLICER_OUTPUT_EXT` 的 output extension 只允许 `.3mf`、`.gcode` 或 `.bgcode`；其他值会在执行切片器前被 reject。
 
 注意: `add` 只入队，不会默认连接或启动打印机；需要显式运行 `start`。
 `config`、`check-config`、`ai_to_print.py` 和 `continuous_print.py` 使用同一套本地配置 preflight。
@@ -237,15 +249,20 @@ cd ComfyUI
 python main.py --disable-xformers --use-pytorch-cross-attention
 ```
 
-启动后访问 `http://localhost:8188`，加载 Hunyuan3D 工作流。该部分需要单独验证工作流 JSON、模型位置和显卡环境。
-
-可先检查 Hunyuan3DWrapper 示例工作流引用的本地模型和输入图是否齐全:
+准备并严格检查 Hunyuan3DWrapper 示例工作流引用的模型和输入图:
 
 ```powershell
-python scripts/check_comfyui_workflow_assets.py --allow-missing
+python scripts/prepare_comfyui_workflow_assets.py --include-optional
+python scripts/check_comfyui_workflow_assets.py
 ```
 
-若命令报告缺失 `models/diffusion_models/hy3dgen/...`、`models/upscale_models/...` 或 `input/...`，需要先把对应资产放到 ComfyUI 目录中，再执行工作流。
+运行一个低成本的真实 API 图；脚本会按需启动并关闭临时 ComfyUI 服务，成功时输出生成 GLB 的网格统计:
+
+```powershell
+python scripts/comfyui_hunyuan_smoke.py --start-server --timeout 600
+```
+
+本机验证使用 5 步、128 octree、5000 面目标，输出 2356 个顶点、5000 个面且 watertight 的 GLB。完整质量工作流仍会使用更多显存和时间。
 
 ## 验证
 
@@ -258,7 +275,8 @@ python -m unittest tests.test_ai_to_print -v
 python -m unittest tests.test_continuous_print -v
 python scripts/system_preflight.py --allow-incomplete
 python scripts/hunyuan_quick.py text "a small robot" --dry-run
-python scripts/check_comfyui_workflow_assets.py --allow-missing
+python scripts/check_comfyui_workflow_assets.py
+python scripts/comfyui_hunyuan_smoke.py --start-server --timeout 600
 # Expected to report a missing local secret and exit nonzero until config/printer.json exists:
 python scripts/auto_print.py check-config
 python scripts/ai_to_print.py text "a rabbit" --no-print --mock

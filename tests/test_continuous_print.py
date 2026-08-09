@@ -103,7 +103,11 @@ class ContinuousPrintTests(unittest.TestCase):
                 printer = ContinuousPrinter(output_dir=tmp, auto_start=False)
             printer.print_queue = FakeQueue()
 
-            result = printer.add_to_print_queue(str(source), name="demo")
+            with patch.dict(
+                ai_to_print.os.environ,
+                {"BAMBU_SLICER_COMMAND": ""},
+            ):
+                result = printer.add_to_print_queue(str(source), name="demo")
 
             self.assertIsNone(result)
             self.assertIsNone(printer.print_queue.added_path)

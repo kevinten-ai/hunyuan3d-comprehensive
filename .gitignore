@@ -15,6 +15,7 @@ ComfyUI/
 Hunyuan3D-1/venv/
 venv/
 .venv/
+.tools/
 
 # 输出文件
 outputs/*.glb
@@ -29,6 +30,7 @@ outputs/**/*.bgcode
 outputs/text_*/
 outputs/img_*/
 outputs/continuous/
+outputs/validation/
 models/ready-to-print/
 models/raw/
 models/slicer-input/
@@ -49,6 +51,7 @@ __pycache__/
 .env.*
 config/printer.json
 .3d_print_queue/
+/result.json
 
 # IDE
 .vscode/

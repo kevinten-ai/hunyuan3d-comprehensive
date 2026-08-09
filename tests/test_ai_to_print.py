@@ -121,7 +121,10 @@ class AiToPrintTests(unittest.TestCase):
             with zipfile.ZipFile(source, "w") as package:
                 package.writestr("3D/3dmodel.model", "<model />")
 
-            with self.assertRaises(ValueError) as context:
+            with patch.dict(
+                ai_to_print.os.environ,
+                {"BAMBU_SLICER_COMMAND": ""},
+            ), self.assertRaises(ValueError) as context:
                 ai_to_print.prepare_ready_to_print_model(str(source))
 
             self.assertIn("Bambu", str(context.exception))
@@ -132,7 +135,10 @@ class AiToPrintTests(unittest.TestCase):
             source = Path(tmp) / "model.stl"
             source.write_text("solid mock\nendsolid mock\n", encoding="ascii")
 
-            with self.assertRaises(ValueError) as context:
+            with patch.dict(
+                ai_to_print.os.environ,
+                {"BAMBU_SLICER_COMMAND": ""},
+            ), self.assertRaises(ValueError) as context:
                 ai_to_print.prepare_ready_to_print_model(str(source))
 
             self.assertIn("源模型", str(context.exception))
@@ -215,7 +221,11 @@ class AiToPrintTests(unittest.TestCase):
 
             queue = FakeQueue()
 
-            result = ai_to_print.add_to_print_queue(queue, str(source), "demo")
+            with patch.dict(
+                ai_to_print.os.environ,
+                {"BAMBU_SLICER_COMMAND": ""},
+            ):
+                result = ai_to_print.add_to_print_queue(queue, str(source), "demo")
 
             self.assertIsNone(result)
             self.assertIsNone(queue.added_path)

@@ -321,6 +321,44 @@ def _check_slicer(environ: Mapping[str, str]) -> PreflightCheck:
             f"BAMBU_SLICER_OUTPUT_EXT={output_ext!r} 不是可验证的打印输出格式。",
             (command,),
         )
+
+    normalized_command = command.replace("\\", "/").lower()
+    if "bambu_slicer_bridge.py" in normalized_command:
+        bridge_inputs = {
+            "BAMBU_SLICER_EXE": environ.get("BAMBU_SLICER_EXE", "").strip(),
+            "BAMBU_SLICER_TEMPLATE": environ.get("BAMBU_SLICER_TEMPLATE", "").strip(),
+        }
+        missing = [name for name, value in bridge_inputs.items() if not value]
+        invalid = [
+            f"{name} ({value})"
+            for name, value in bridge_inputs.items()
+            if value and not Path(value).is_file()
+        ]
+        if missing or invalid:
+            details = []
+            if missing:
+                details.append("未配置 " + ", ".join(missing))
+            if invalid:
+                details.append("文件不存在 " + ", ".join(invalid))
+            return PreflightCheck(
+                "slicer",
+                "Bambu/OrcaSlicer bridge",
+                "blocked",
+                "Bambu 切片桥接配置无效: " + "; ".join(details),
+                (command,),
+            )
+        return PreflightCheck(
+            "slicer",
+            "Bambu/OrcaSlicer bridge",
+            "ready",
+            "Bambu 切片桥接脚本、切片器和已知可用工程模板均已配置。",
+            (
+                command,
+                output_ext,
+                bridge_inputs["BAMBU_SLICER_EXE"],
+                bridge_inputs["BAMBU_SLICER_TEMPLATE"],
+            ),
+        )
     return PreflightCheck(
         "slicer",
         "Bambu/OrcaSlicer bridge",

@@ -10,7 +10,8 @@
   - root Hunyuan command failures return nonzero with ordinary error output.
 - Bambu queue `add` persists jobs without auto-connecting or starting the printer; upload failures mark jobs failed without sending a print-start command; start-command failures mark jobs failed without entering monitor mode; current-job cancel/pause/resume/stop state changes only proceed after the matching printer command succeeds; `clear` does not discard queued work when stopping the active print fails.
 - The Bambu queue only accepts ready-to-print files (`.gcode`, `.bgcode`, or Bambu/OrcaSlicer project `.3mf` with slice metadata); AI-to-print and continuous-print reject generated source geometry before queueing and instruct the user to convert plus slice first.
-- AI-to-print and continuous-print can use optional `BAMBU_SLICER_COMMAND` / `BAMBU_SLICER_OUTPUT_EXT` local overrides to run a verified external slicer command before queueing; unsafe output extension values are rejected before slicer execution, and the generated output is still validated before the queue accepts it.
+- AI-to-print and continuous-print can use the bundled Bambu Studio bridge through `BAMBU_SLICER_COMMAND`; the bridge requires an existing executable and known-good project template, then auto-scales/orients/arranges/slices and validates the generated project before queueing.
+- `BAMBU_SLICER_OUTPUT_EXT` restricts the expected output extension to `.3mf`, `.gcode`, or `.bgcode`; unsupported values are rejected before slicer execution.
 - Bambu client tests cover default status fields, MQTT connection callback success/failure/timeout handling, MQTT report parsing, queue status serialization, HTTP upload success/failure return values, empty-file start rejection, and local `project_file` command payload construction.
 - `model_converter.py` returns nonzero for local CLI input failures and reports missing files without tracebacks.
 - `auto_print.py` returns nonzero for local add/remove/cancel/stop/clear failure paths instead of reporting a false-success CLI exit.
@@ -55,15 +56,17 @@ python scripts/auto_print.py status
 # Expected printer discovery gate when no printer is found:
 python scripts/ai_to_print.py discover --timeout 0.1
 python scripts/generate_claude_crabs.py --list
-python scripts/check_comfyui_workflow_assets.py --allow-missing
+python scripts/check_comfyui_workflow_assets.py
 python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server
+python scripts/comfyui_hunyuan_smoke.py --start-server --timeout 600
+python scripts/bambu_slicer_bridge.py outputs/demo/demo.stl outputs/validation/bambu_cli/bridge_demo.gcode.3mf --slicer-exe PATH_TO_BAMBU_STUDIO --template PATH_TO_KNOWN_GOOD_PROJECT
 ```
 
 ## Not Yet Release-Complete
 
 These items still require environment or hardware changes before the full end-to-end system can be called complete:
 
-- Aggregate preflight currently reports 1 ready area and 4 blocked areas. Run `python scripts/system_preflight.py --allow-incomplete` for the human-readable report or add `--json`; run without `--allow-incomplete` for the strict nonzero release gate.
+- Aggregate preflight currently reports 3 ready areas and 2 blocked areas. Hunyuan3D-2, ComfyUI, and the Bambu slicer bridge are ready; Hunyuan3D-1 `nvdiffrast` and local printer configuration remain blocked. Run without `--allow-incomplete` for the strict nonzero release gate.
 
 - Hunyuan3D-1 environment:
   - `Hunyuan3D-1/venv` now passes `pip check` and `main.py --help`;
@@ -80,7 +83,12 @@ These items still require environment or hardware changes before the full end-to
   - quick test exits 0, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`;
   - `nodes_math.py` and `nodes_glsl.py` import after installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`;
   - browser launch at `http://127.0.0.1:8190` rendered the ComfyUI UI;
-  - `scripts/check_comfyui_workflow_assets.py` reports 7 unique required missing assets and 2 unique optional/downloadable missing assets for the local example workflows.
+  - all 13 unique workflow asset references are present;
+  - a real 5-step API graph produced a watertight GLB with 2,356 vertices and 5,000 faces.
+- Bambu Studio slicer:
+  - the bundled bridge produced a validated P1S project `.3mf` from the demo STL;
+  - the archive contains plate G-code and slice metadata, with a reported estimate of about 38.9 minutes and 5.11 g filament;
+  - a known-good local project template remains required for printer, process, and filament settings.
 - Bambu Lab printer:
   - local screenshots confirm Bambu Studio is connected to a real P1S with AMS and show a completed print, but this is not repository protocol validation;
   - `scripts/auto_print.py discover --timeout 3` found no printer even though the Studio process had an established port 8883 session;
@@ -93,6 +101,5 @@ These items still require environment or hardware changes before the full end-to
 ## Suggested Next Steps
 
 1. Install CUDA Toolkit and Visual Studio Build Tools, compile `nvdiffrast` in the Hunyuan3D-1 venv, then rerun the real low-step text-to-3D validation.
-2. Keep a complete Hunyuan3D-2 local model snapshot, including `config.yaml`, then validate full-quality generation settings.
-3. Align ComfyUI example workflow assets and model paths, then run a Hunyuan3D workflow graph end to end.
-4. Create local `config/printer.json` from `config/printer.json.example`, then validate Bambu queue commands on the real printer.
+2. Validate full-quality Hunyuan3D-2 and ComfyUI generation settings and visual quality.
+3. Create local `config/printer.json` from `config/printer.json.example`, then validate Bambu upload and control commands on the real printer.
