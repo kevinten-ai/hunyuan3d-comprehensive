@@ -39,11 +39,20 @@ class ModelConverter:
     """3D模型格式转换器"""
 
     SUPPORTED_READ = ['.stl', '.obj', '.ply', '.glb', '.gltf', '.3mf']
-    SUPPORTED_WRITE = ['.stl', '.obj', '.ply']
+    SUPPORTED_WRITE = ['.stl', '.obj', '.ply', '.3mf']
 
     def __init__(self, output_dir: Optional[str] = None):
         self.output_dir = Path(output_dir) if output_dir else OUTPUT_DIR
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def _as_mesh(self, loaded):
+        """Normalize trimesh load results so Scene files can be inspected and exported."""
+        if TRIMESH_AVAILABLE and isinstance(loaded, trimesh.Scene):
+            geometries = [geom for geom in loaded.geometry.values() if hasattr(geom, "vertices")]
+            if not geometries:
+                raise ValueError("场景中未找到可用网格")
+            return trimesh.util.concatenate(geometries)
+        return loaded
 
     def convert(self, input_path: str, output_format: str,
                 output_name: Optional[str] = None) -> Path:
@@ -59,7 +68,7 @@ class ModelConverter:
             输出文件路径
         """
         if not TRIMESH_AVAILABLE:
-            raise RuntimeError("trimesg未安装，无法进行格式转换")
+            raise RuntimeError("trimesh未安装，无法进行格式转换")
 
         input_path = Path(input_path)
         if not input_path.exists():
@@ -76,7 +85,7 @@ class ModelConverter:
 
         # 加载模型
         print(f"加载模型: {input_path}")
-        mesh = trimesh.load(str(input_path))
+        mesh = self._as_mesh(trimesh.load(str(input_path)))
 
         # 确定输出路径
         if output_name is None:
@@ -87,7 +96,7 @@ class ModelConverter:
         print(f"转换中: {output_path}")
         mesh.export(str(output_path), file_type=output_format[1:])
 
-        print(f"✓ 转换完成: {output_path}")
+        print(f"[OK] 转换完成: {output_path}")
         return output_path
 
     def to_stl(self, input_path: str, output_name: Optional[str] = None) -> Path:
@@ -104,10 +113,10 @@ class ModelConverter:
         拓竹打印前建议修复
         """
         if not TRIMESH_AVAILABLE:
-            raise RuntimeError("trimesg未安装，无法修复模型")
+            raise RuntimeError("trimesh未安装，无法修复模型")
 
         input_path = Path(input_path)
-        mesh = trimesh.load(str(input_path))
+        mesh = self._as_mesh(trimesh.load(str(input_path)))
 
         # 修复操作
         print("修复中...")
@@ -131,16 +140,16 @@ class ModelConverter:
         output_path = self.output_dir / f"{output_name}.stl"
 
         mesh.export(str(output_path), file_type='stl')
-        print(f"✓ 模型已修复: {output_path}")
+        print(f"[OK] 模型已修复: {output_path}")
         return output_path
 
     def get_info(self, input_path: str) -> dict:
         """获取模型信息"""
         if not TRIMESH_AVAILABLE:
-            raise RuntimeError("trimesg未安装，无法读取模型信息")
+            raise RuntimeError("trimesh未安装，无法读取模型信息")
 
         input_path = Path(input_path)
-        mesh = trimesh.load(str(input_path))
+        mesh = self._as_mesh(trimesh.load(str(input_path)))
 
         info = {
             'file': input_path.name,
@@ -160,7 +169,7 @@ def main():
     if not TRIMESH_AVAILABLE:
         print("错误: 请先安装 trimesh")
         print("  pip install trimesh")
-        return
+        return 1
 
     converter = ModelConverter()
 
@@ -178,43 +187,61 @@ def main():
   python model_converter.py repair ./output/model.stl
   python model_converter.py info model.stl
         """)
-        return
+        return 0
 
     cmd = sys.argv[1].lower()
 
     if cmd == 'convert':
         if len(sys.argv) < 4:
             print("错误: 请提供输入文件和输出格式")
-            return
-        converter.convert(sys.argv[2], sys.argv[3],
-                          sys.argv[4] if len(sys.argv) > 4 else None)
+            return 1
+        try:
+            converter.convert(sys.argv[2], sys.argv[3],
+                              sys.argv[4] if len(sys.argv) > 4 else None)
+        except (FileNotFoundError, ValueError, RuntimeError) as e:
+            print(f"错误: {e}")
+            return 1
+        return 0
 
     elif cmd == 'repair':
         if len(sys.argv) < 3:
             print("错误: 请提供输入文件")
-            return
-        converter.repair_mesh(sys.argv[2],
-                              sys.argv[3] if len(sys.argv) > 3 else None)
+            return 1
+        try:
+            converter.repair_mesh(sys.argv[2],
+                                  sys.argv[3] if len(sys.argv) > 3 else None)
+        except (FileNotFoundError, ValueError, RuntimeError) as e:
+            print(f"错误: {e}")
+            return 1
+        return 0
 
     elif cmd == 'info':
         if len(sys.argv) < 3:
             print("错误: 请提供文件路径")
-            return
-        info = converter.get_info(sys.argv[2])
+            return 1
+        try:
+            info = converter.get_info(sys.argv[2])
+        except (FileNotFoundError, ValueError, RuntimeError) as e:
+            print(f"错误: {e}")
+            return 1
+        volume_text = f"{info['volume']:.2f} cm^3" if info['volume'] else "N/A"
         print(f"""
 模型信息:
 --------
 文件: {info['file']}
 顶点数: {info['vertices']:,}
 面数: {info['faces']:,}
-体积: {info['volume']:.2f} cm³" if info['volume'] else "N/A"
+体积: {volume_text}
 边界: {info['bounds']}
-封闭性: {'✓ 是' if info['is_watertight'] else '✗ 否 (可能需要修复)'}
+封闭性: {'YES' if info['is_watertight'] else 'NO (可能需要修复)'}
         """)
+
+        return 0
 
     else:
         print(f"未知命令: {cmd}")
+        return 1
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

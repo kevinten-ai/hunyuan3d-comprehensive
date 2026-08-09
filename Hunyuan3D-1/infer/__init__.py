@@ -26,7 +26,6 @@ from .removebg import Removebg
 from .text_to_image import Text2Image
 from .image_to_views import Image2Views, save_gif
 from .views_to_mesh import Views2Mesh
-from .gif_render import GifRenderer
 
 from .utils import seed_everything, auto_amp_inference
 from .utils import get_parameter_number, set_parameter_grad_false

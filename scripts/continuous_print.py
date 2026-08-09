@@ -39,6 +39,11 @@ from enum import Enum
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from scripts.local_env import load_project_env
+
+
+load_project_env(PROJECT_ROOT)
+
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
@@ -78,7 +83,9 @@ class ContinuousPrinter:
         access_code: str = None,
         serial: str = None,
         output_dir: str = None,
-        auto_start: bool = True
+        auto_start: bool = True,
+        mock: bool = False,
+        run_generator: bool = False
     ):
         """
         初始化持续打印机
@@ -105,6 +112,8 @@ class ContinuousPrinter:
         # 打印队列
         self.print_queue = None
         self.auto_start = auto_start
+        self.mock = mock
+        self.run_generator = run_generator
         self.is_running = False
 
         # 生成状态
@@ -125,7 +134,18 @@ class ContinuousPrinter:
         config_file = PROJECT_ROOT / "config" / "printer.json"
         if config_file.exists():
             with open(config_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                config = json.load(f)
+            from scripts.auto_print import validate_printer_config
+
+            errors, warnings = validate_printer_config(config)
+            for warning in warnings:
+                logger.warning(f"[配置] {warning}")
+            if errors:
+                for error in errors:
+                    logger.warning(f"[配置] {error}")
+                logger.warning("打印机配置检查未通过，将跳过自动打印")
+                return None
+            return config
         return None
 
     def _init_printer(self):
@@ -136,12 +156,14 @@ class ContinuousPrinter:
 
         try:
             from bambu_print import PrintQueue
+            from scripts.auto_print import printer_options_from_config
             self.print_queue = PrintQueue(
                 printer_host=self.printer_config['host'],
                 access_code=self.printer_config['access_code'],
-                serial=self.printer_config['serial']
+                serial=self.printer_config['serial'],
+                printer_options=printer_options_from_config(self.printer_config),
             )
-            logger.info(f"✓ 已连接打印机: {self.printer_config['host']}")
+            logger.info(f"[OK] 已初始化打印机队列: {self.printer_config['host']}")
         except Exception as e:
             logger.error(f"打印机连接失败: {e}")
             self.print_queue = None
@@ -184,42 +206,30 @@ class ContinuousPrinter:
         output.mkdir(parents=True, exist_ok=True)
 
         try:
-            # 使用Hunyuan3D-1生成
-            sys.path.insert(0, str(PROJECT_ROOT / "Hunyuan3D-1"))
-            from main import get_args
+            if self.mock:
+                from scripts.ai_to_print import _write_mock_stl
 
-            # 构造参数
-            args = type('Args', (), {
-                'text_prompt': prompt,
-                'image_prompt': '',
-                'save_folder': str(output),
-                'use_lite': False,
-                'save_memory': False,
-                'device': 'cuda:0' if os.path.exists('/dev/nvidia0') else 'cpu',
-                'max_faces_num': 120000,
-                'do_texture_mapping': True,
-                'do_render': False,
-                'do_bake': False
-            })()
+                model_file = _write_mock_stl(str(output))
+                logger.info(f"[生成] Mock 模式已创建: {model_file}")
+                self.generation_stats['success'] += 1
+                return str(model_file)
 
-            # 执行生成 (简化版，实际使用需导入真实模块)
-            # 由于Hunyuan3D-1 main.py需要完整执行，这里用模拟
-            logger.info(f"[生成] 正在生成模型，请稍候...")
-            time.sleep(2)  # 模拟生成时间
+            if not self.run_generator:
+                logger.warning("[生成] 未执行真实文字生成。启用 --run-generator 或 --mock。")
+                return None
 
-            # 查找生成的模型文件
+            from scripts import hunyuan_quick
+
+            hunyuan_quick.text_to_3d(prompt, output_dir=str(output), lite=True, dry_run=False)
             model_file = self._find_model_file(output)
             if model_file:
                 logger.info(f"[生成] 完成: {model_file}")
                 self.generation_stats['success'] += 1
                 return str(model_file)
 
-            # 模拟生成一个文件用于测试
-            model_file = output / "mesh.obj"
-            model_file.write_text("# Test model\n")
-            logger.warning("[生成] 使用模拟模型文件")
-            self.generation_stats['success'] += 1
-            return str(model_file)
+            logger.error(f"[生成] 输出目录中未找到模型文件: {output}")
+            self.generation_stats['failed'] += 1
+            return None
 
         except Exception as e:
             logger.error(f"[生成] 失败: {e}")
@@ -245,33 +255,30 @@ class ContinuousPrinter:
         output.mkdir(parents=True, exist_ok=True)
 
         try:
-            sys.path.insert(0, str(PROJECT_ROOT / "Hunyuan3D-2"))
-            from hy3dgen.rembg import BackgroundRemover
-            from hy3dgen.shapegen import Hunyuan3DDiTFlowMatchingPipeline
-            from hy3dgen.texgen import Hunyuan3DPaintPipeline
-            from PIL import Image
+            if self.mock:
+                from scripts.ai_to_print import _write_mock_stl
 
-            # 加载模型
-            model_path = 'tencent/Hunyuan3D-2'
-            pipeline_shapegen = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(model_path)
-            pipeline_texgen = Hunyuan3DPaintPipeline.from_pretrained(model_path)
+                model_file = _write_mock_stl(str(output))
+                logger.info(f"[生成] Mock 模式已创建: {model_file}")
+                self.generation_stats['success'] += 1
+                return str(model_file)
 
-            # 处理图片
-            image = Image.open(image_path).convert("RGBA")
-            if image.mode == 'RGB':
-                rembg = BackgroundRemover()
-                image = rembg(image)
+            if not self.run_generator:
+                logger.warning("[生成] 未执行真实图片生成。启用 --run-generator 或 --mock。")
+                return None
 
-            # 生成
-            mesh = pipeline_shapegen(image=image)[0]
-            mesh = pipeline_texgen(mesh, image=image)
+            from scripts import hunyuan_quick
 
-            output_file = output / "model.glb"
-            mesh.export(str(output_file))
+            hunyuan_quick.image_to_3d(image_path, output_dir=str(output), quality=quality, dry_run=False)
+            model_file = self._find_model_file(output)
+            if model_file:
+                logger.info(f"[生成] 完成: {model_file}")
+                self.generation_stats['success'] += 1
+                return str(model_file)
 
-            logger.info(f"[生成] 完成: {output_file}")
-            self.generation_stats['success'] += 1
-            return str(output_file)
+            logger.error(f"[生成] 输出目录中未找到模型文件: {output}")
+            self.generation_stats['failed'] += 1
+            return None
 
         except Exception as e:
             logger.error(f"[生成] 失败: {e}")
@@ -340,8 +347,14 @@ class ContinuousPrinter:
             return None
 
         try:
-            job_id = self.print_queue.add(
+            from scripts.ai_to_print import prepare_ready_to_print_model
+
+            ready_path = prepare_ready_to_print_model(
                 model_path,
+                output_dir=str(Path(model_path).parent),
+            )
+            job_id = self.print_queue.add(
+                ready_path,
                 name=name or Path(model_path).stem
             )
             logger.info(f"[队列] 已添加: {job_id}")
@@ -458,12 +471,15 @@ class ContinuousPrinter:
         prompt_file = Path(prompt_file)
         if not prompt_file.exists():
             logger.error(f"[提示词] 文件不存在: {prompt_file}")
-            return
+            return False
 
-        prompts = [line.strip() for line in prompt_file.read_text(encoding='utf-8').splitlines()
+        prompts = [line.strip() for line in prompt_file.read_text(encoding='utf-8-sig').splitlines()
                    if line.strip() and not line.startswith('#')]
 
         logger.info(f"[提示词] 加载了 {len(prompts)} 个提示词")
+        if not prompts:
+            logger.error(f"[提示词] 文件没有可处理的提示词: {prompt_file}")
+            return False
 
         # 已处理记录
         processed_file = PROJECT_ROOT / ".continuous_prompts.json"
@@ -473,6 +489,7 @@ class ContinuousPrinter:
             processed_idx = set()
 
         self.is_running = True
+        failed = False
         for i, prompt in enumerate(prompts):
             if not self.is_running:
                 break
@@ -484,15 +501,32 @@ class ContinuousPrinter:
 
             # 生成
             model_path = self.generate_from_text(prompt)
-            if model_path:
-                # 修复
-                repaired = self.repair_model(model_path)
-                # 添加到队列
-                self.add_to_print_queue(repaired, name=f"[AI] {prompt[:30]}")
+            if not model_path:
+                logger.warning(f"[提示词] 生成失败，未标记为已处理: {prompt}")
+                failed = True
+                continue
 
-                if self.auto_start:
-                    self.start_printing()
-                    self.wait_for_print_completion()
+            # 修复
+            repaired = self.repair_model(model_path)
+            if not self.auto_start:
+                logger.info(f"[提示词] 模型已生成: {repaired}")
+                processed_idx.add(i)
+                processed_file.write_text(json.dumps(list(processed_idx)))
+                continue
+
+            # 添加到队列
+            job_id = self.add_to_print_queue(repaired, name=f"[AI] {prompt[:30]}")
+            if not job_id:
+                logger.warning(f"[提示词] 入队失败，未标记为已处理: {prompt}")
+                failed = True
+                continue
+
+            if self.auto_start:
+                self.start_printing()
+                if not self.wait_for_print_completion():
+                    logger.warning(f"[提示词] 打印等待失败，未标记为已处理: {prompt}")
+                    failed = True
+                    continue
 
             # 标记已处理
             processed_idx.add(i)
@@ -507,8 +541,9 @@ class ContinuousPrinter:
                     time.sleep(1)
 
         logger.info("[提示词] 所有提示词处理完成")
+        return not failed
 
-    def run_single(self, prompt: str = None, image: str = None):
+    def run_single(self, prompt: str = None, image: str = None) -> bool:
         """
         单次生成
 
@@ -522,16 +557,29 @@ class ContinuousPrinter:
             model_path = self.generate_from_image(image)
         else:
             logger.error("请提供 prompt 或 image")
-            return
+            return False
 
-        if model_path:
-            repaired = self.repair_model(model_path)
-            job_id = self.add_to_print_queue(repaired)
+        if not model_path:
+            logger.warning("[完成] 未生成模型，流程停止")
+            return False
 
-            if job_id and self.auto_start:
-                self.start_printing()
-                logger.info("[完成] 已添加到打印队列")
-                self.wait_for_print_completion()
+        repaired = self.repair_model(model_path)
+        if not self.auto_start:
+            logger.info(f"[完成] 模型已生成: {repaired}")
+            return True
+
+        if not self.print_queue:
+            logger.warning("[队列] 打印机未连接，跳过打印")
+            return False
+
+        job_id = self.add_to_print_queue(repaired)
+        if not job_id:
+            return False
+
+        self.start_printing()
+        logger.info("[完成] 已添加到打印队列")
+        self.wait_for_print_completion()
+        return True
 
     def stop(self):
         """停止持续生成"""
@@ -559,14 +607,20 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  # 单次生成 + 打印
-  python scripts/continuous_print.py generate "一只可爱的兔子"
+  # 本地演示: 只生成 mock STL，不打印
+  python scripts/continuous_print.py generate --prompt "一只可爱的兔子" --mock --no-print
+
+  # 单次真实生成 + 打印
+  python scripts/continuous_print.py generate --prompt "一只可爱的兔子" --run-generator
 
   # 监控文件夹模式
   python scripts/continuous_print.py watch --folder ./watch_folder
 
   # 提示词列表模式
   python scripts/continuous_print.py prompts --file prompts.txt --delay 60
+
+  # 提示词列表本地演示: 生成 mock STL，不打印
+  python scripts/continuous_print.py prompts --file prompts.txt --delay 0 --mock --no-print
 
   # 查看状态
   python scripts/continuous_print.py status
@@ -589,37 +643,54 @@ def main():
     gen_parser.add_argument('--prompt', '-p', help='文字提示词')
     gen_parser.add_argument('--image', '-i', help='图片路径')
     gen_parser.add_argument('--no-print', action='store_true', help='不打印')
+    gen_parser.add_argument('--mock', action='store_true', help='演示模式：创建最小 STL，不调用模型')
+    gen_parser.add_argument('--run-generator', action='store_true', help='调用真实 Hunyuan3D 生成命令')
 
     # watch - 监控文件夹
     watch_parser = subparsers.add_parser('watch', help='监控文件夹模式')
     watch_parser.add_argument('--folder', '-f', default='./watch_folder', help='监控文件夹')
     watch_parser.add_argument('--extensions', nargs='+', help='监控的文件扩展名')
     watch_parser.add_argument('--no-auto-print', action='store_true', help='不自动打印')
+    watch_parser.add_argument('--mock', action='store_true', help='演示模式：创建最小 STL，不调用模型')
+    watch_parser.add_argument('--run-generator', action='store_true', help='调用真实 Hunyuan3D 生成命令')
 
     # prompts - 提示词列表
     prompts_parser = subparsers.add_parser('prompts', help='提示词列表模式')
     prompts_parser.add_argument('--file', '-f', required=True, help='提示词文件')
     prompts_parser.add_argument('--delay', '-d', type=float, default=60, help='间隔时间(秒)')
+    prompts_parser.add_argument('--no-print', action='store_true', help='不打印')
+    prompts_parser.add_argument('--mock', action='store_true', help='演示模式：创建最小 STL，不调用模型')
+    prompts_parser.add_argument('--run-generator', action='store_true', help='调用真实 Hunyuan3D 生成命令')
 
     # status - 状态
     subparsers.add_parser('status', help='查看状态')
 
     args = parser.parse_args()
 
+    if not args.command:
+        parser.print_help()
+        return 0
+
+    mock = getattr(args, 'mock', False)
+    run_generator = getattr(args, 'run_generator', False)
+
     # 创建管理器
-    printer = ContinuousPrinter()
+    printer = ContinuousPrinter(mock=mock, run_generator=run_generator)
 
     if args.command == 'status':
         import json
         print(json.dumps(printer.get_status(), indent=2, ensure_ascii=False))
-        return
+        return 0
 
     if args.command == 'generate':
         if not args.prompt and not args.image:
             print("请提供 --prompt 或 --image")
-            return
+            return 1
         printer.auto_start = not args.no_print
-        printer.run_single(prompt=args.prompt, image=args.image)
+        if not printer.run_single(prompt=args.prompt, image=args.image):
+            print("未生成模型；流程停止。")
+            return 1
+        return 0
 
     elif args.command == 'watch':
         printer.auto_start = not args.no_auto_print
@@ -627,13 +698,16 @@ def main():
             printer.run_folder_watch(args.folder, args.extensions)
         except KeyboardInterrupt:
             printer.stop()
+        return 0
 
     elif args.command == 'prompts':
-        printer.run_prompt_list(args.file, args.delay)
+        printer.auto_start = not args.no_print
+        return 0 if printer.run_prompt_list(args.file, args.delay) else 1
 
     else:
         parser.print_help()
+        return 1
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

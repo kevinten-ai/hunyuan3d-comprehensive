@@ -9,31 +9,33 @@
 - 监控打印进度
 
 示例:
-    # 配置打印机
-    python auto_print.py config --host 192.168.1.100 --access-code xxx --serial SNXXX
+    # 从仓库根目录配置打印机
+    python scripts/auto_print.py config --host YOUR_PRINTER_IP --serial YOUR_PRINTER_SERIAL
 
     # 添加打印任务
-    python auto_print.py add ./model.stl --name "我的模型"
+    python scripts/auto_print.py add ./plate.gcode --name "我的模型"
 
     # 查看队列
-    python auto_print.py list
+    python scripts/auto_print.py list
 
     # 查看状态
-    python auto_print.py status
+    python scripts/auto_print.py status
 
     # 控制队列
-    python auto_print.py start
-    python auto_print.py pause
-    python auto_print.py resume
-    python auto_print.py stop
+    python scripts/auto_print.py start
+    python scripts/auto_print.py pause
+    python scripts/auto_print.py resume
+    python scripts/auto_print.py stop
 
     # 发现打印机
-    python auto_print.py discover
+    python scripts/auto_print.py discover
 """
 
 import sys
 import os
 import argparse
+import getpass
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -42,17 +44,28 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from bambu_print import PrintQueue, ConnectionType, discover_printers
+from scripts.local_env import load_project_env
+
+load_project_env(PROJECT_ROOT)
 
 # 配置文件路径
 CONFIG_DIR = PROJECT_ROOT / "config"
 CONFIG_FILE = CONFIG_DIR / "printer.json"
+SUPPORTED_QUEUE_METHODS = {"mqtt"}
+PLACEHOLDER_VALUES = {
+    "YOUR_PRINTER_IP",
+    "YOUR_ACCESS_CODE",
+    "YOUR_CODE",
+    "SNXXX",
+    "YOUR_SERIAL",
+    "YOUR_PRINTER_SERIAL",
+}
 
 
 def load_config() -> Optional[dict]:
     """加载配置文件"""
     if not CONFIG_FILE.exists():
         return None
-    import json
     with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
         return json.load(f)
 
@@ -60,24 +73,136 @@ def load_config() -> Optional[dict]:
 def save_config(config: dict):
     """保存配置文件"""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    import json
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
 
 
+def validate_printer_config(config: Optional[dict]) -> tuple[list[str], list[str]]:
+    """Validate local printer config without opening a printer connection."""
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    if config is None:
+        return ["未找到 config/printer.json，请先从 config/printer.json.example 创建本地配置。"], warnings
+
+    if not isinstance(config, dict):
+        return ["config/printer.json 必须是 JSON 对象。"], warnings
+
+    required_fields = ("host", "access_code", "serial")
+    for field in required_fields:
+        value = str(config.get(field, "")).strip()
+        if not value:
+            errors.append(f"缺少必填字段: {field}")
+        elif value in PLACEHOLDER_VALUES:
+            errors.append(f"字段 {field} 仍是模板占位值: {value}")
+
+    host = str(config.get("host", "")).strip()
+    if host in {"192.168.1.100", "0.0.0.0", "127.0.0.1", "localhost"}:
+        warnings.append(f"host 看起来像示例或本机地址，请确认它是真实打印机 IP: {host}")
+
+    method = str(config.get("method", "mqtt")).strip().lower()
+    if method not in SUPPORTED_QUEUE_METHODS:
+        errors.append(
+            f"method={method!r} 当前不能用于自动打印队列；请使用 mqtt。"
+        )
+
+    for field in ("lan_developer_mode", "use_ams", "timelapse"):
+        if field in config and not isinstance(config[field], bool):
+            errors.append(f"字段 {field} 必须是 JSON boolean。")
+
+    mapping = config.get("ams_mapping", [-1, -1, -1, -1, 0])
+    if (
+        not isinstance(mapping, list)
+        or len(mapping) != 5
+        or any(not isinstance(slot, int) or slot < -1 or slot > 15 for slot in mapping)
+    ):
+        errors.append("ams_mapping 必须是包含 5 个 -1..15 整数的数组。")
+    elif config.get("use_ams", False) and all(slot == -1 for slot in mapping):
+        errors.append("use_ams=true 时 ams_mapping 至少需要一个有效 AMS 槽位。")
+
+    for field, default in (("timeout", 10), ("upload_timeout", 600)):
+        value = config.get(field, default)
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            errors.append(f"字段 {field} 必须是正整数秒数。")
+
+    if not errors and config.get("lan_developer_mode") is not True:
+        warnings.append(
+            "现代 Bambu 固件通常需要在打印机上启用 LAN Developer Mode，"
+            "否则 FTPS/MQTT 直连可能被拒绝。"
+        )
+
+    return errors, warnings
+
+
+def printer_options_from_config(config: dict) -> dict:
+    """Extract non-secret printer behavior options for BambuPrinterClient."""
+    return {
+        "use_ams": bool(config.get("use_ams", False)),
+        "ams_mapping": list(config.get("ams_mapping", [-1, -1, -1, -1, 0])),
+        "timelapse": bool(config.get("timelapse", False)),
+        "timeout": int(config.get("timeout", 10)),
+        "upload_timeout": int(config.get("upload_timeout", 600)),
+    }
+
+
+def print_config_validation(config: Optional[dict], show_success: bool = True) -> bool:
+    """Print local config validation result. Returns True when usable."""
+    errors, warnings = validate_printer_config(config)
+    if errors:
+        print("打印机配置检查未通过:")
+        for error in errors:
+            print(f"  - {error}")
+    elif show_success:
+        print("[OK] 打印机配置字段检查通过")
+
+    if warnings:
+        print("注意:")
+        for warning in warnings:
+            print(f"  - {warning}")
+
+    if errors:
+        print(
+            "请运行: python scripts/auto_print.py config --host YOUR_PRINTER_IP "
+            "--serial YOUR_PRINTER_SERIAL"
+        )
+        return False
+    return True
+
+
 def cmd_config(args):
     """配置打印机"""
+    access_code = args.access_code
+    if not access_code:
+        if not sys.stdin.isatty():
+            print("错误: 非交互环境必须通过 --access-code 提供访问码。")
+            return 1
+        access_code = getpass.getpass("打印机 Access Code（输入不会显示）: ").strip()
+
     config = {
         'host': args.host,
-        'access_code': args.access_code,
+        'access_code': access_code,
         'serial': args.serial,
-        'method': args.method
+        'method': args.method,
+        'lan_developer_mode': args.developer_mode,
+        'use_ams': args.use_ams,
+        'ams_mapping': [-1, -1, -1, -1, args.ams_slot],
+        'timelapse': args.timelapse,
     }
+
+    if not print_config_validation(config, show_success=False):
+        return 1
+
     save_config(config)
-    print(f"✓ 配置已保存到 {CONFIG_FILE}")
+    print(f"[OK] 配置已保存到 {CONFIG_FILE}")
     print(f"  主机: {args.host}")
     print(f"  序列号: {args.serial}")
     print(f"  连接方式: {args.method}")
+
+
+def cmd_check_config(args):
+    """检查本地打印机配置，不连接打印机"""
+    config = load_config()
+    return 0 if print_config_validation(config) else 1
 
 
 def cmd_discover(args):
@@ -87,26 +212,26 @@ def cmd_discover(args):
 
     if not printers:
         print("未发现打印机，请确保打印机在同一网络且已开启")
-        return
+        return 1
 
     print(f"\n发现 {len(printers)} 台打印机:")
     for i, p in enumerate(printers, 1):
         print(f"  {i}. IP: {p['ip']} - {p.get('name', 'Unknown')}")
+    return 0
 
 
 def get_queue() -> Optional[PrintQueue]:
     """获取队列实例"""
     config = load_config()
-    if not config:
-        print("错误: 请先配置打印机")
-        print("运行: python auto_print.py config --host <ip> --access-code <code> --serial <sn>")
+    if not print_config_validation(config, show_success=False):
         return None
 
     return PrintQueue(
         printer_host=config['host'],
         access_code=config['access_code'],
         serial=config['serial'],
-        connection_type=ConnectionType(config.get('method', 'mqtt'))
+        connection_type=ConnectionType(config.get('method', 'mqtt')),
+        printer_options=printer_options_from_config(config),
     )
 
 
@@ -114,26 +239,32 @@ def cmd_add(args):
     """添加打印任务"""
     queue = get_queue()
     if queue is None:
-        return
+        return 1
 
     filepath = Path(args.file)
     if not filepath.exists():
         print(f"错误: 文件不存在: {filepath}")
-        return
+        return 1
 
-    job_id = queue.add(
-        str(filepath.absolute()),
-        name=args.name,
-        priority=args.priority
-    )
-    print(f"✓ 任务已添加 (ID: {job_id})")
+    try:
+        job_id = queue.add(
+            str(filepath.absolute()),
+            name=args.name,
+            priority=args.priority
+        )
+    except Exception as e:
+        print(f"错误: 添加任务失败: {e}")
+        return 1
+
+    print(f"[OK] 任务已添加 (ID: {job_id})")
+    return 0
 
 
 def cmd_list(args):
     """列出队列"""
     queue = get_queue()
     if queue is None:
-        return
+        return 1
 
     jobs = queue.list_queue()
 
@@ -152,9 +283,16 @@ def cmd_status(args):
     """查看状态"""
     queue = get_queue()
     if queue is None:
-        return
+        return 1
 
-    status = queue.get_status()
+    if not queue.printer.connect():
+        print("错误: 无法连接打印机读取实时状态")
+        return 1
+
+    try:
+        status = queue.get_status()
+    finally:
+        queue.printer.disconnect()
 
     print(f"\n队列状态: {status['status']}")
     print(f"队列长度: {status['queue_length']}")
@@ -174,13 +312,22 @@ def cmd_status(args):
     print(f"  层: {printer['layer']}/{printer['total_layers']}")
     print(f"  热床温度: {printer['bed_temp']}°C")
     print(f"  喷嘴温度: {printer['nozzle_temp']}°C")
+    print(f"  打印错误码: {printer['print_error']}")
+    if printer['hms']:
+        print("  HMS:")
+        for item in printer['hms']:
+            attr = int(item.get('attr', 0))
+            code = int(item.get('code', 0))
+            print(f"    - {attr:08X}{code:08X}")
+
+    return 0
 
 
 def cmd_history(args):
     """查看历史"""
     queue = get_queue()
     if queue is None:
-        return
+        return 1
 
     history = queue.get_history(limit=args.limit)
 
@@ -196,85 +343,106 @@ def cmd_history(args):
 
 
 def cmd_start(args):
-    """启动队列"""
+    """在前台运行队列直到清空或被停止。"""
     queue = get_queue()
     if queue is None:
-        return
+        return 1
 
-    queue.start()
-    print("队列已启动")
+    print("队列将在前台运行；可在另一个终端使用 pause/resume/stop 控制。")
+    if not queue.run_foreground():
+        print("错误: 队列未能启动或处理失败")
+        return 1
+    print("队列处理已结束")
+    return 0
 
 
 def cmd_pause(args):
     """暂停队列"""
     queue = get_queue()
     if queue is None:
-        return
+        return 1
 
-    queue.pause()
+    if not queue.pause():
+        print("错误: 暂停队列失败")
+        return 1
     print("队列已暂停")
+    return 0
 
 
 def cmd_resume(args):
     """继续队列"""
     queue = get_queue()
     if queue is None:
-        return
+        return 1
 
-    queue.resume()
+    if not queue.resume():
+        print("错误: 继续队列失败")
+        return 1
     print("队列已继续")
+    return 0
 
 
 def cmd_stop(args):
     """停止队列"""
     queue = get_queue()
     if queue is None:
-        return
+        return 1
 
-    queue.stop()
+    if not queue.stop():
+        print("错误: 停止队列失败")
+        return 1
     print("队列已停止")
+    return 0
 
 
 def cmd_clear(args):
     """清空队列"""
     queue = get_queue()
     if queue is None:
-        return
+        return 1
 
     if args.force or input("确认清空队列? (y/N): ").lower() == 'y':
-        queue.clear()
+        if not queue.clear():
+            print("错误: 清空队列失败")
+            return 1
         print("队列已清空")
+        return 0
+    return 0
 
 
 def cmd_remove(args):
     """移除任务"""
     queue = get_queue()
     if queue is None:
-        return
+        return 1
 
     if queue.remove(args.job_id):
         print(f"已移除任务: {args.job_id}")
+        return 0
     else:
         print(f"未找到任务: {args.job_id}")
+        return 1
 
 
 def cmd_cancel(args):
     """取消正在打印的任务"""
     queue = get_queue()
     if queue is None:
-        return
+        return 1
 
     if queue.cancel(args.job_id):
         print(f"已取消任务: {args.job_id}")
+        return 0
     else:
         print(f"未找到任务: {args.job_id}")
+        return 1
 
 
 def cmd_watch(args):
     """实时监控打印进度"""
     queue = get_queue()
     if queue is None:
-        return
+        return 1
 
     print("开始监控打印进度，按 Ctrl+C 退出...\n")
 
@@ -307,28 +475,29 @@ def main():
         epilog="""
 示例:
   # 首次使用需要配置打印机
-  python auto_print.py config --host 192.168.1.100 --access-code YOUR_CODE --serial SNXXX
+  python scripts/auto_print.py config --host YOUR_PRINTER_IP --serial YOUR_PRINTER_SERIAL
+  python scripts/auto_print.py check-config
 
   # 添加打印任务
-  python auto_print.py add ./model.stl
-  python auto_print.py add ./robot.obj --name my_robot --priority 5
+  python scripts/auto_print.py add ./bambu_project.3mf
+  python scripts/auto_print.py add ./robot.gcode --name my_robot --priority 5
 
   # 管理队列
-  python auto_print.py list
-  python auto_print.py status
-  python auto_print.py start
-  python auto_print.py pause
-  python auto_print.py resume
-  python auto_print.py stop
+  python scripts/auto_print.py list
+  python scripts/auto_print.py status
+  python scripts/auto_print.py start
+  python scripts/auto_print.py pause
+  python scripts/auto_print.py resume
+  python scripts/auto_print.py stop
 
   # 监控进度
-  python auto_print.py watch
+  python scripts/auto_print.py watch
 
   # 查看历史
-  python auto_print.py history
+  python scripts/auto_print.py history
 
   # 发现打印机
-  python auto_print.py discover
+  python scripts/auto_print.py discover
         """
     )
     subparsers = parser.add_subparsers(dest='command', help='子命令')
@@ -336,14 +505,35 @@ def main():
     # config - 配置打印机
     config_parser = subparsers.add_parser('config', help='配置打印机连接')
     config_parser.add_argument('--host', required=True, help='打印机IP地址')
-    config_parser.add_argument('--access-code', dest='access_code', required=True, help='访问码')
+    config_parser.add_argument(
+        '--access-code',
+        dest='access_code',
+        help='访问码；省略时安全地隐藏输入，自动化环境才建议显式传入',
+    )
     config_parser.add_argument('--serial', required=True, help='序列号')
-    config_parser.add_argument('--method', choices=['mqtt', 'http'],
+    config_parser.add_argument('--method', choices=sorted(SUPPORTED_QUEUE_METHODS),
                                default='mqtt', help='连接方式')
+    config_parser.add_argument(
+        '--developer-mode',
+        action='store_true',
+        help='确认打印机已显式启用 LAN Developer Mode',
+    )
+    config_parser.add_argument('--use-ams', action='store_true', help='使用 AMS 供料')
+    config_parser.add_argument(
+        '--ams-slot',
+        type=int,
+        choices=range(16),
+        default=0,
+        help='单色项目使用的 AMS 槽位 (0-15)',
+    )
+    config_parser.add_argument('--timelapse', action='store_true', help='启用延时摄影')
+
+    # check-config - 本地配置检查
+    subparsers.add_parser('check-config', help='检查本地打印机配置，不连接打印机')
 
     # discover - 发现打印机
     discover_parser = subparsers.add_parser('discover', help='发现局域网打印机')
-    discover_parser.add_argument('--timeout', type=float, default=3.0, help='搜索超时时间')
+    discover_parser.add_argument('--timeout', type=float, default=6.0, help='监听公告的秒数')
 
     # add - 添加任务
     add_parser = subparsers.add_parser('add', help='添加打印任务')
@@ -388,11 +578,12 @@ def main():
     # 如果没有命令，显示帮助
     if not args.command:
         parser.print_help()
-        return
+        return 0
 
     # 根据命令调用对应的处理函数
     commands = {
         'config': cmd_config,
+        'check-config': cmd_check_config,
         'discover': cmd_discover,
         'add': cmd_add,
         'list': cmd_list,
@@ -411,16 +602,17 @@ def main():
     cmd_func = commands.get(args.command)
     if cmd_func:
         try:
-            cmd_func(args)
+            result = cmd_func(args)
+            return result if isinstance(result, int) else 0
         except Exception as e:
             print(f"错误: {e}")
-            import traceback
-            traceback.print_exc()
+            return 1
     else:
         parser.print_help()
+        return 0
 
 
 if __name__ == '__main__':
     # 添加time导入供watch命令使用
     import time
-    main()
+    sys.exit(main())

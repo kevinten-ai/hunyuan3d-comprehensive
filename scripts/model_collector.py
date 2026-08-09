@@ -19,10 +19,18 @@ import json
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from scripts.local_env import load_project_env
+
+
+load_project_env(PROJECT_ROOT)
+
 MODELS_DIR = PROJECT_ROOT / "models"
 MODELS_RAW = MODELS_DIR / "raw"
-MODELS_READY = MODELS_DIR / "ready-to-print"
+MODELS_SLICER_INPUT = MODELS_DIR / "slicer-input"
 MODELS_COLLECTION = MODELS_DIR / "collection"
+MODELS_DIR_ENV = "MODEL_COLLECTOR_MODELS_DIR"
 
 class ModelCollector:
     """3D模型收集器"""
@@ -39,19 +47,23 @@ class ModelCollector:
         'custom': '自定义'
     }
 
-    def __init__(self):
+    def __init__(self, models_dir: Optional[Path] = None):
+        self.models_dir = Path(models_dir) if models_dir else MODELS_DIR
+        self.models_raw = self.models_dir / "raw"
+        self.models_slicer_input = self.models_dir / "slicer-input"
+        self.models_collection = self.models_dir / "collection"
         self._ensure_directories()
 
     def _ensure_directories(self):
         """创建必要的目录结构"""
         dirs = [
-            MODELS_RAW / 'text-to-3d',
-            MODELS_RAW / 'image-to-3d',
-            MODELS_READY,
-            MODELS_COLLECTION,
+            self.models_raw / 'text-to-3d',
+            self.models_raw / 'image-to-3d',
+            self.models_slicer_input,
+            self.models_collection,
         ]
         for cat in self.CATEGORIES.keys():
-            dirs.append(MODELS_COLLECTION / cat)
+            dirs.append(self.models_collection / cat)
 
         for d in dirs:
             d.mkdir(parents=True, exist_ok=True)
@@ -84,7 +96,7 @@ class ModelCollector:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         new_name = f"{category}_{name}_{timestamp}{ext}"
 
-        dest = MODELS_COLLECTION / category / new_name
+        dest = self.models_collection / category / new_name
 
         if copy:
             shutil.copy2(source, dest)
@@ -94,12 +106,12 @@ class ModelCollector:
         # 更新模型索引
         self._update_index(dest, category, name)
 
-        print(f"✓ 模型已添加: {dest}")
+        print(f"[OK] 模型已添加: {dest}")
         return dest
 
     def _update_index(self, model_path: Path, category: str, name: str):
         """更新模型索引数据库"""
-        index_file = MODELS_COLLECTION / 'index.json'
+        index_file = self.models_collection / 'index.json'
         index = []
 
         if index_file.exists():
@@ -113,7 +125,7 @@ class ModelCollector:
                 hash_md5.update(chunk)
 
         entry = {
-            'path': str(model_path.relative_to(PROJECT_ROOT)),
+            'path': str(model_path.relative_to(self.models_dir)),
             'name': name,
             'category': category,
             'format': model_path.suffix,
@@ -138,7 +150,7 @@ class ModelCollector:
 
     def list_models(self, category: Optional[str] = None) -> List[dict]:
         """列出模型库中的模型"""
-        index_file = MODELS_COLLECTION / 'index.json'
+        index_file = self.models_collection / 'index.json'
         if not index_file.exists():
             return []
 
@@ -149,16 +161,16 @@ class ModelCollector:
             return [m for m in index if m.get('category') == category]
         return index
 
-    def export_for_print(self, model_name: str, target_dir: str = None) -> Path:
+    def export_for_slicing(self, model_name: str, target_dir: str = None) -> Path:
         """
-        导出模型到打印目录
+        Export a collected source model to the slicer-input directory.
 
         Args:
-            model_name: 模型名称（支持模糊匹配）
-            target_dir: 目标目录
+            model_name: Model name; fuzzy matching is supported.
+            target_dir: Optional export directory.
 
         Returns:
-            导出后的文件路径
+            Exported file path.
         """
         index = self.list_models()
 
@@ -174,10 +186,10 @@ class ModelCollector:
             return None
 
         model_info = matches[0]
-        source = PROJECT_ROOT / model_info['path']
+        source = self.models_dir / model_info['path']
 
         if target_dir is None:
-            target_dir = MODELS_READY
+            target_dir = self.models_slicer_input
         else:
             target_dir = Path(target_dir)
 
@@ -185,13 +197,18 @@ class ModelCollector:
         dest = target_dir / source.name
 
         shutil.copy2(source, dest)
-        print(f"✓ 已导出到: {dest}")
+        print(f"[OK] 已导出到: {dest}")
         return dest
+
+    def export_for_print(self, model_name: str, target_dir: str = None) -> Path:
+        """Backward-compatible alias for export_for_slicing()."""
+        return self.export_for_slicing(model_name, target_dir)
 
 
 def main():
     """命令行入口"""
-    collector = ModelCollector()
+    models_dir = os.environ.get(MODELS_DIR_ENV)
+    collector = ModelCollector(models_dir=Path(models_dir) if models_dir else None)
 
     if len(sys.argv) < 2:
         print("""
@@ -207,18 +224,23 @@ def main():
   python model_collector.py list toys
   python model_collector.py export dragon
         """)
-        return
+        return 0
 
     cmd = sys.argv[1].lower()
 
     if cmd == 'add':
         if len(sys.argv) < 3:
             print("错误: 请提供文件路径")
-            return
+            return 1
         path = sys.argv[2]
         category = sys.argv[3] if len(sys.argv) > 3 else 'custom'
         name = sys.argv[4] if len(sys.argv) > 4 else None
-        collector.add_model(path, category, name)
+        try:
+            collector.add_model(path, category, name)
+        except (FileNotFoundError, ValueError) as e:
+            print(f"错误: {e}")
+            return 1
+        return 0
 
     elif cmd == 'list':
         category = sys.argv[2] if len(sys.argv) > 2 else None
@@ -229,16 +251,23 @@ def main():
             size_kb = m['size'] / 1024
             print(f"{m['name']:<30} {m['category']:<15} {m['format']:<8} {size_kb:.1f} KB")
         print(f"\n共 {len(models)} 个模型")
+        return 0
 
     elif cmd == 'export':
         if len(sys.argv) < 3:
             print("错误: 请提供模型名称")
-            return
-        collector.export_for_print(sys.argv[2])
+            return 1
+        try:
+            result = collector.export_for_slicing(sys.argv[2])
+        except ValueError as e:
+            print(f"错误: {e}")
+            return 1
+        return 0 if result is not None else 1
 
     else:
         print(f"未知命令: {cmd}")
+        return 1
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

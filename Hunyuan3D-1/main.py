@@ -33,18 +33,18 @@ warnings.simplefilter('ignore', category=UserWarning)
 warnings.simplefilter('ignore', category=FutureWarning)
 warnings.simplefilter('ignore', category=DeprecationWarning)
 
-from infer import Text2Image, Removebg, Image2Views, Views2Mesh, GifRenderer
-from third_party.mesh_baker import MeshBaker
+from infer import Text2Image, Removebg, Image2Views, Views2Mesh
 from third_party.check import check_bake_available
 
-try:
-    from third_party.mesh_baker import MeshBaker
-    assert check_bake_available()
-    BAKE_AVAILEBLE = True
-except Exception as err:
-    print(err)
-    print("import baking related fail, run without baking")
-    BAKE_AVAILEBLE = False
+MeshBaker = None
+BAKE_AVAILEBLE = check_bake_available(verbose=False)
+if BAKE_AVAILEBLE:
+    try:
+        from third_party.mesh_baker import MeshBaker
+    except Exception as err:
+        print(err)
+        print("import baking related fail, run without baking")
+        BAKE_AVAILEBLE = False
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -143,7 +143,9 @@ if __name__ == "__main__":
             align_times = args.bake_align_times
         )
             
-    if check_bake_available():
+    if args.do_render:
+        from infer.gif_render import GifRenderer
+
         gif_renderer = GifRenderer(device=args.device)
         
     print(f"Init Models cost {time.time()-st}s")

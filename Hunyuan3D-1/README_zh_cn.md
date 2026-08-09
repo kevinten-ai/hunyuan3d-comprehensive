@@ -128,6 +128,35 @@ when install pytorch3d, the gcc version is preferably greater than 9, and the gp
 
 </details>
 
+#### CUDA 13 / Blackwell GPU 的 Docker 运行方式
+
+仓库内的多阶段镜像已经固定 PyTorch CUDA 13、nvdiffrast 和 xFormers，
+Windows 不需要另外安装 CUDA Toolkit 或 MSVC。先下载模型权重，再构建镜像：
+
+```shell
+docker compose build
+```
+
+普通 `main.py` lite 流程即使使用 `--save_memory` 仍约需 18 GB 显存。
+16 GB 显卡应让各模型在独立进程中运行：
+
+```shell
+docker compose run --rm hunyuan3d python scripts/text_to_3d_low_vram.py \
+  "a small red toy robot" --output outputs/docker-low-vram
+```
+
+快速验证可降低采样步数和面数：
+
+```shell
+docker compose run --rm hunyuan3d python scripts/text_to_3d_low_vram.py \
+  "a small red toy robot" --output outputs/docker-smoke \
+  --t2i-steps 1 --gen-steps 1 --max-faces 1000
+```
+
+默认输出为 `mesh_vertex_colors.obj`；增加 `--texture-mapping` 会同时生成
+`mesh.glb`。已有阶段文件时可用 `--start-stage mesh` 继续。核心镜像不包含
+可选的 PyTorch3D/DUSt3R 烘焙和 GIF 渲染依赖。
+
 #### 下载预训练模型
 
 模型下载链接 [https://huggingface.co/tencent/Hunyuan3D-1](https://huggingface.co/tencent/Hunyuan3D-1):

@@ -1,0 +1,11 @@
+venv/
+weights/
+outputs/
+__pycache__/
+*.pyc
+*.pyo
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+.git/

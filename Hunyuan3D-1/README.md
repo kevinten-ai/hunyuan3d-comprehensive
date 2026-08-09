@@ -132,6 +132,37 @@ when install pytorch3d, the gcc version is preferably greater than 9, and the gp
 
 </details>
 
+#### Docker for CUDA 13 / Blackwell GPUs
+
+The bundled multi-stage image provides PyTorch CUDA 13, nvdiffrast, and
+xFormers without requiring a native Windows CUDA Toolkit or MSVC install.
+Download the model weights first, then build the image:
+
+```shell
+docker compose build
+```
+
+The regular `main.py` pipeline needs about 18 GB VRAM even with the lite model
+and `--save_memory`. On a 16 GB GPU, run each model in an isolated process:
+
+```shell
+docker compose run --rm hunyuan3d python scripts/text_to_3d_low_vram.py \
+  "a small red toy robot" --output outputs/docker-low-vram
+```
+
+For a quick runtime check, reduce the sampling steps and face count:
+
+```shell
+docker compose run --rm hunyuan3d python scripts/text_to_3d_low_vram.py \
+  "a small red toy robot" --output outputs/docker-smoke \
+  --t2i-steps 1 --gen-steps 1 --max-faces 1000
+```
+
+The default output is `mesh_vertex_colors.obj`; pass `--texture-mapping` to
+also generate `mesh.glb`. Use `--start-stage mesh` to resume from saved stage
+images. PyTorch3D/DUSt3R baking and GIF rendering remain optional extras and
+are not included in the core runtime image.
+
 #### Download Pretrained Models
 
 The models are available at [https://huggingface.co/tencent/Hunyuan3D-1](https://huggingface.co/tencent/Hunyuan3D-1):

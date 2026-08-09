@@ -2,19 +2,28 @@
 拓竹打印机客户端
 
 支持多种连接方式:
-- Moonraker: 推荐，稳定易用
-- MQTT: 高级定制
-- HTTP: 云端控制
+- MQTT: Bambu LAN Developer Mode 本地控制方式
+- FTPS: 通过 curl 上传切片文件到打印机 SD 卡
+- Moonraker/HTTP: 枚举保留，当前未实现连接流程
 """
 
-import time
+import hashlib
 import json
+import os
+import re
+import select
+import shutil
 import socket
+import ssl
+import subprocess
 import threading
+import time
+import unicodedata
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import Optional, Callable, Dict, Any, List
 from pathlib import Path
+from urllib.parse import quote, urlparse
 
 # 尝试导入可选依赖
 try:
@@ -22,13 +31,6 @@ try:
     HAS_MQTT = True
 except ImportError:
     HAS_MQTT = False
-
-try:
-    import requests
-    HAS_REQUESTS = True
-except ImportError:
-    HAS_REQUESTS = False
-
 
 class ConnectionType(Enum):
     """连接类型"""
@@ -60,29 +62,35 @@ class PrinterStatus:
     nozzle_temp: float = 0.0
     model_info: str = ""
     ip_address: str = ""
+    remaining_time: int = 0  # 秒
+    print_error: int = 0
+    hms: List[Dict[str, Any]] = field(default_factory=list)
 
 
 class BambuPrinterClient:
     """
     拓竹打印机客户端
 
-    支持本地局域网控制和云端控制
+    支持本地局域网 FTPS 上传和 MQTT 控制。现代固件通常需要在打印机
+    上显式启用 LAN Developer Mode。
 
     示例:
         client = BambuPrinterClient(
-            host="192.168.1.100",
-            access_code="xxx",
-            serial="SNXXX"
+            host="YOUR_PRINTER_IP",
+            access_code="YOUR_ACCESS_CODE",
+            serial="YOUR_PRINTER_SERIAL"
         )
         client.connect()
-        client.send_file("model.3mf")
-        client.start_print("model.3mf")
+        client.send_file("bambu_project.3mf")
+        client.start_print("bambu_project.3mf")
     """
 
     # MQTT配置
     MQTT_PORT = 8883
-    MQTT_TOPIC_PREFIX = "p"
+    MQTT_TOPIC_PREFIX = "device"
     MQTT_USER = "bblp"
+    FTPS_PORT = 990
+    FTPS_USER = "bblp"
 
     def __init__(
         self,
@@ -90,7 +98,12 @@ class BambuPrinterClient:
         access_code: str,
         serial: str,
         connection_type: ConnectionType = ConnectionType.MQTT,
-        timeout: int = 10
+        timeout: int = 10,
+        upload_timeout: int = 600,
+        use_ams: bool = False,
+        ams_mapping: Optional[List[int]] = None,
+        timelapse: bool = False,
+        ca_cert: Optional[str] = None,
     ):
         """
         初始化打印机客户端
@@ -107,14 +120,25 @@ class BambuPrinterClient:
         self.serial = serial
         self.connection_type = connection_type
         self.timeout = timeout
+        self.upload_timeout = upload_timeout
+        self.use_ams = use_ams
+        self.ams_mapping = list(ams_mapping or [-1, -1, -1, -1, 0])
+        self.timelapse = timelapse
+        self.ca_cert = self._resolve_ca_cert(ca_cert)
 
         self._mqtt_client = None
         self._mqtt_connected = False
+        self._mqtt_connect_event = threading.Event()
+        self._status_update_event = threading.Event()
         self._status_callbacks: List[Callable] = []
         self._last_status: PrinterStatus = PrinterStatus()
+        self._sequence_lock = threading.Lock()
+        self._sequence_value = int(time.time() * 1000)
+        self._pending_commands: Dict[str, Dict[str, Any]] = {}
 
         # 打印文件存储路径
         self._print_files: Dict[str, str] = {}
+        self._last_uploaded_file: Optional[str] = None
 
     def _create_mqtt_client(self) -> Optional[Any]:
         """创建MQTT客户端"""
@@ -128,7 +152,22 @@ class BambuPrinterClient:
             transport="tcp"
         )
         client.username_pw_set(self.MQTT_USER, self.access_code)
-        client.tls_set(tls_version=mqtt.ssl.PROTOCOL_TLSv1_2)
+        if self.ca_cert:
+            client.tls_set(
+                ca_certs=self.ca_cert,
+                cert_reqs=ssl.CERT_REQUIRED,
+                tls_version=ssl.PROTOCOL_TLS_CLIENT,
+            )
+        else:
+            print("[MQTT] 警告: 未找到 Bambu printer.cer，TLS 将不验证设备证书")
+            client.tls_set(
+                cert_reqs=ssl.CERT_NONE,
+                tls_version=ssl.PROTOCOL_TLS_CLIENT,
+            )
+        # Printer certificates generally identify the device, not its LAN IP.
+        # Keep hostname checks disabled; with printer.cer present the certificate
+        # chain is still validated against Bambu's local printer CA.
+        client.tls_insecure_set(True)
 
         client.on_connect = self._on_mqtt_connect
         client.on_disconnect = self._on_mqtt_disconnect
@@ -136,16 +175,34 @@ class BambuPrinterClient:
 
         return client
 
+    @staticmethod
+    def _resolve_ca_cert(explicit_path: Optional[str]) -> Optional[str]:
+        """Find Bambu Studio's printer CA without copying it into the repository."""
+        candidates = [explicit_path, os.environ.get('BAMBU_PRINTER_CA_CERT')]
+        slicer_exe = os.environ.get('BAMBU_SLICER_EXE')
+        if slicer_exe:
+            candidates.append(
+                str(Path(slicer_exe).expanduser().parent / 'resources' / 'cert' / 'printer.cer')
+            )
+        for candidate in candidates:
+            if not candidate:
+                continue
+            path = Path(candidate).expanduser()
+            if path.is_file():
+                return str(path.resolve())
+        return None
+
     def _on_mqtt_connect(self, client, userdata, flags, rc):
         """MQTT连接回调"""
         if rc == 0:
             print(f"[MQTT] 成功连接到 {self.host}")
             self._mqtt_connected = True
             # 订阅打印机状态报告
-            client.subscribe(f"{self.MQTT_TOPIC_PREFIX}/{self.serial}/report/#")
+            client.subscribe(f"{self.MQTT_TOPIC_PREFIX}/{self.serial}/report")
         else:
             print(f"[MQTT] 连接失败，返回码: {rc}")
             self._mqtt_connected = False
+        self._mqtt_connect_event.set()
 
     def _on_mqtt_disconnect(self, client, userdata, rc):
         """MQTT断开连接回调"""
@@ -156,10 +213,21 @@ class BambuPrinterClient:
         """MQTT消息回调"""
         try:
             topic_parts = msg.topic.split('/')
-            if len(topic_parts) >= 3 and topic_parts[2] == 'report':
+            if (
+                len(topic_parts) >= 3
+                and topic_parts[0] == self.MQTT_TOPIC_PREFIX
+                and topic_parts[2] == 'report'
+            ):
                 # 解析状态报告
                 payload = json.loads(msg.payload.decode('utf-8'))
                 self._parse_status_report(payload)
+                self._resolve_command_response(payload)
+
+                print_data = payload.get('print')
+                if isinstance(print_data, dict) and (
+                    'gcode_state' in print_data or 'state' in print_data
+                ):
+                    self._status_update_event.set()
 
                 # 通知回调
                 for callback in self._status_callbacks:
@@ -169,14 +237,53 @@ class BambuPrinterClient:
 
     def _parse_status_report(self, data: Dict):
         """解析打印机状态报告"""
-        # 根据Bambu Lab MQTT协议解析
+        # P1-series push_status uses gcode_state/mc_* and may send only deltas.
+        # Keep the legacy aliases for older tests and captured payloads.
         if 'print' in data:
             print_data = data['print']
-            self._last_status.print_status = print_data.get('state', 'unknown')
-            self._last_status.progress = print_data.get('progress', 0.0)
-            self._last_status.layer = print_data.get('layer', 0)
-            self._last_status.total_layers = print_data.get('total_layers', 0)
-            self._last_status.remaining_time = print_data.get('remain_time', 0)
+            state = print_data.get('gcode_state', print_data.get('state'))
+            if state is not None:
+                state_map = {
+                    'IDLE': 'idle',
+                    'RUNNING': 'printing',
+                    'PREPARE': 'printing',
+                    'PAUSE': 'paused',
+                    'FINISH': 'completed',
+                    'FAILED': 'failed',
+                }
+                self._last_status.print_status = state_map.get(
+                    str(state).upper(), str(state).lower()
+                )
+
+            progress = print_data.get('mc_percent', print_data.get('progress'))
+            if progress is not None:
+                self._last_status.progress = float(progress)
+            layer = print_data.get('layer_num', print_data.get('layer'))
+            if layer is not None:
+                self._last_status.layer = int(layer)
+            total_layers = print_data.get('total_layer_num', print_data.get('total_layers'))
+            if total_layers is not None:
+                self._last_status.total_layers = int(total_layers)
+            if 'mc_remaining_time' in print_data:
+                # Firmware reports remaining time in minutes.
+                self._last_status.remaining_time = int(
+                    float(print_data['mc_remaining_time']) * 60
+                )
+            elif 'remain_time' in print_data:
+                self._last_status.remaining_time = int(print_data['remain_time'])
+            if 'bed_temper' in print_data:
+                self._last_status.bed_temp = float(print_data['bed_temper'])
+            if 'nozzle_temper' in print_data:
+                self._last_status.nozzle_temp = float(print_data['nozzle_temper'])
+            if print_data.get('gcode_file'):
+                self._last_status.model_info = str(print_data['gcode_file'])
+            if 'print_error' in print_data:
+                self._last_status.print_error = int(print_data['print_error'])
+            if 'hms' in print_data:
+                self._last_status.hms = [
+                    dict(item) for item in (print_data.get('hms') or [])
+                    if isinstance(item, dict)
+                ]
 
         if 'device' in data:
             device_data = data['device']
@@ -185,6 +292,23 @@ class BambuPrinterClient:
         # 木板信息
         if 'ams' in data:
             self._last_status.model_info = f"AMS: {data['ams']}"
+
+    def _resolve_command_response(self, payload: Dict[str, Any]) -> None:
+        """Wake a command waiter when the printer reports its sequence result."""
+        for value in payload.values():
+            if not isinstance(value, dict):
+                continue
+            sequence_id = str(value.get('sequence_id', ''))
+            pending = self._pending_commands.get(sequence_id)
+            if pending is None or 'result' not in value:
+                continue
+            pending['response'] = value
+            pending['event'].set()
+
+    def _next_sequence_id(self) -> str:
+        with self._sequence_lock:
+            self._sequence_value += 1
+            return str(self._sequence_value)
 
     def connect(self) -> bool:
         """
@@ -204,6 +328,8 @@ class BambuPrinterClient:
         self._mqtt_client = self._create_mqtt_client()
         if self._mqtt_client is None:
             return False
+        self._mqtt_connect_event.clear()
+        self._mqtt_connected = False
 
         try:
             print(f"[MQTT] 正在连接到 {self.host}:{self.MQTT_PORT}...")
@@ -214,10 +340,41 @@ class BambuPrinterClient:
 
             # 启动消息循环
             self._mqtt_client.loop_start()
+            if not self._mqtt_connect_event.wait(self.timeout):
+                print("[MQTT] 连接确认超时")
+                self._cleanup_failed_mqtt_connection()
+                return False
+
+            if not self._mqtt_connected:
+                self._cleanup_failed_mqtt_connection()
+                return False
+
+            # P1 printers emit delta status objects. Request one full snapshot
+            # after connecting, then rely on normal incremental reports.
+            self._status_update_event.clear()
+            self.request_full_status()
+            if not self._status_update_event.wait(min(float(self.timeout), 5.0)):
+                print("[MQTT] 警告: 未在超时前收到完整打印机状态快照")
             return True
         except Exception as e:
             print(f"[MQTT] 连接异常: {e}")
+            self._cleanup_failed_mqtt_connection()
             return False
+
+    def _cleanup_failed_mqtt_connection(self):
+        """Clean up a failed MQTT connection attempt."""
+        if not self._mqtt_client:
+            return
+        try:
+            self._mqtt_client.loop_stop()
+        except Exception:
+            pass
+        try:
+            self._mqtt_client.disconnect()
+        except Exception:
+            pass
+        self._mqtt_client = None
+        self._mqtt_connected = False
 
     def disconnect(self):
         """断开连接"""
@@ -260,50 +417,102 @@ class BambuPrinterClient:
             是否成功
         """
         path = Path(filepath)
-        if not path.exists():
+        if not path.is_file():
             print(f"错误: 文件不存在: {filepath}")
             return False
-
-        remote_name = filename or path.name
-        print(f"准备发送文件: {path.name} -> {remote_name}")
-
-        # 注意: 拓竹打印机需要在同一局域网内，且支持SMB/FTP传输
-        # 这里使用HTTP方式上传文件到打印机
-        return self._upload_file_http(filepath, remote_name)
-
-    def _upload_file_http(self, filepath: str, remote_name: str) -> bool:
-        """通过HTTP方式上传文件"""
-        if not HAS_REQUESTS:
-            print("警告: requests库未安装，将跳过文件上传")
-            print("请手动将文件放到打印机的SD卡或通过Bambu Studio上传")
-            self._print_files[remote_name] = filepath
-            return True
+        if path.stat().st_size <= 0:
+            print(f"错误: 文件为空: {filepath}")
+            return False
 
         try:
-            # 拓竹打印机的文件上传API
-            upload_url = f"http://{self.host}:8080/api/files/{remote_name}"
+            remote_name = self._normalize_remote_name(filename or path.name)
+        except ValueError as exc:
+            print(f"错误: {exc}")
+            return False
+        print(f"准备发送文件: {path.name} -> {remote_name}")
 
-            with open(filepath, 'rb') as f:
-                files = {'file': (remote_name, f, 'application/octet-stream')}
-                response = requests.post(
-                    upload_url,
-                    files=files,
-                    timeout=self.timeout
-                )
+        if not self._upload_file_ftps(path, remote_name):
+            return False
+        self._print_files[remote_name] = str(path)
+        self._last_uploaded_file = remote_name
+        return True
 
-            if response.status_code in [200, 201]:
-                print(f"文件上传成功: {remote_name}")
-                self._print_files[remote_name] = filepath
-                return True
-            else:
-                print(f"文件上传失败: {response.status_code}")
-                # 即使HTTP失败，也将文件记录到本地
-                self._print_files[remote_name] = filepath
-                return True
-        except Exception as e:
-            print(f"文件上传异常: {e}")
-            self._print_files[remote_name] = filepath
-            return True
+    @staticmethod
+    def _normalize_remote_name(filename: str) -> str:
+        """Return a simple ASCII SD-card filename accepted by Bambu FTPS."""
+        basename = Path(filename).name
+        lower = basename.lower()
+        if lower.endswith('.gcode.3mf'):
+            suffix = '.gcode.3mf'
+            stem = basename[:-len(suffix)]
+        else:
+            suffix = Path(basename).suffix.lower()
+            stem = basename[:-len(suffix)] if suffix else basename
+        if suffix not in {'.3mf', '.gcode.3mf', '.gcode', '.bgcode'}:
+            raise ValueError(f"不支持上传到打印机的文件扩展名: {suffix or '(none)'}")
+        if re.fullmatch(r'[A-Za-z0-9._-]+', basename):
+            return basename
+
+        ascii_stem = unicodedata.normalize('NFKD', stem).encode('ascii', 'ignore').decode()
+        safe_stem = re.sub(r'[^A-Za-z0-9._-]+', '_', ascii_stem).strip('._-')
+        digest = hashlib.sha256(basename.encode('utf-8')).hexdigest()[:8]
+        return f"{(safe_stem or 'print')[:48]}_{digest}{suffix}"
+
+    @staticmethod
+    def _curl_config_value(value: str) -> str:
+        return value.replace('\\', '\\\\').replace('"', '\\"').replace('\r', '').replace('\n', '')
+
+    def _upload_file_ftps(
+        self,
+        filepath: Path,
+        remote_name: str,
+        runner=subprocess.run,
+    ) -> bool:
+        """Upload through Bambu's implicit FTPS service without CLI secrets."""
+        curl = shutil.which('curl.exe') or shutil.which('curl')
+        if not curl:
+            print("错误: 未找到 curl，无法通过 FTPS 上传文件")
+            return False
+
+        credentials = self._curl_config_value(f"{self.FTPS_USER}:{self.access_code}")
+        local_path = self._curl_config_value(filepath.resolve().as_posix())
+        remote_url = self._curl_config_value(
+            f"ftps://{self.host}:{self.FTPS_PORT}/{quote(remote_name)}"
+        )
+        curl_config = "\n".join(
+            [
+                'fail',
+                'silent',
+                'show-error',
+                'insecure',
+                'ftp-pasv',
+                'ssl-reqd',
+                f'connect-timeout = "{self.timeout}"',
+                f'max-time = "{self.upload_timeout}"',
+                f'user = "{credentials}"',
+                f'upload-file = "{local_path}"',
+                f'url = "{remote_url}"',
+            ]
+        )
+        creationflags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+        try:
+            completed = runner(
+                [curl, '--config', '-'],
+                input=curl_config,
+                capture_output=True,
+                text=True,
+                timeout=self.upload_timeout + 5,
+                creationflags=creationflags,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            print(f"FTPS 上传异常: {exc}")
+            return False
+        if completed.returncode != 0:
+            detail = completed.stderr.strip().splitlines()
+            print(f"FTPS 上传失败: {detail[-1] if detail else f'exit {completed.returncode}'}")
+            return False
+        print(f"文件上传成功: {remote_name}")
+        return True
 
     def start_print(self, filename: str = None) -> bool:
         """
@@ -323,66 +532,125 @@ class BambuPrinterClient:
             print("未连接到打印机")
             return False
 
-        # 构建打印命令
-        command = {
+        if not filename and not self._print_files:
+            print("没有可打印文件，请先上传文件或显式指定打印文件名")
+            return False
+
+        try:
+            command = self._build_start_print_command(filename)
+        except ValueError as exc:
+            print(f"错误: {exc}")
+            return False
+        return self._send_mqtt_command(command)
+
+    def _build_start_print_command(self, filename: str = None) -> Dict[str, Any]:
+        """Build a Bambu project_file command without sending it."""
+        remote_file = filename or self._last_uploaded_file
+        if remote_file is None:
+            remote_file = next(iter(self._print_files), "")
+        remote_file = self._normalize_remote_name(remote_file)
+        sequence_id = self._next_sequence_id()
+        if remote_file.lower().endswith(('.3mf', '.gcode.3mf')):
+            return {
+                "print": {
+                    "sequence_id": sequence_id,
+                    "command": "project_file",
+                    "param": "Metadata/plate_1.gcode",
+                    "project_id": "0",
+                    "profile_id": "0",
+                    "task_id": "0",
+                    "subtask_id": "0",
+                    "subtask_name": remote_file,
+                    "file": remote_file,
+                    "url": f"ftp:///{remote_file}",
+                    "md5": "",
+                    "timelapse": self.timelapse,
+                    "bed_type": "auto",
+                    "bed_leveling": True,
+                    "bed_levelling": True,
+                    "flow_cali": True,
+                    "vibration_cali": True,
+                    "layer_inspect": True,
+                    "ams_mapping": self.ams_mapping if self.use_ams else [],
+                    "use_ams": self.use_ams,
+                }
+            }
+        return {
             "print": {
-                "sequence_id": str(int(time.time())),
-                "command": "project_file",
-                "param": filename or list(self._print_files.keys())[0] if self._print_files else "",
-                "project_id": None,
-                "profile_id": None,
-                "task_id": None,
-                "subtask_id": None,
-                "subtask_name": None,
-                "print_quality": None,
-                "weight": None,
-                "bed_leveling": True,
-                "flow_cali": True,
-                "kong_raft": False,
-                "prime_tower": True,
-                "mode": "system",
-                "user_id": "xxxxxxxxxx",
-                "filament_id": "GFL01"
+                "sequence_id": sequence_id,
+                "command": "gcode_file",
+                "param": remote_file,
             }
         }
 
-        return self._send_mqtt_command(command)
-
-    def _send_mqtt_command(self, command: Dict) -> bool:
-        """发送MQTT命令"""
+    def _send_mqtt_command(self, command: Dict, wait_for_ack: bool = True) -> bool:
+        """Publish a command and confirm the printer response when requested."""
         if not self._mqtt_client or not self._mqtt_connected:
             print("MQTT未连接")
             return False
 
+        body = next((value for value in command.values() if isinstance(value, dict)), None)
+        if body is None:
+            print("MQTT命令结构无效")
+            return False
+        sequence_id = str(body.setdefault('sequence_id', self._next_sequence_id()))
+        pending = {'event': threading.Event(), 'response': None}
+        if wait_for_ack:
+            self._pending_commands[sequence_id] = pending
         try:
             topic = f"{self.MQTT_TOPIC_PREFIX}/{self.serial}/request"
             payload = json.dumps(command)
             result = self._mqtt_client.publish(topic, payload)
 
-            if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                print(f"命令发送成功: {command.get('print', {}).get('command', 'unknown')}")
-                return True
-            else:
+            if result.rc != mqtt.MQTT_ERR_SUCCESS:
                 print(f"命令发送失败: {result.rc}")
                 return False
+            command_name = body.get('command', 'unknown')
+            if not wait_for_ack:
+                print(f"命令已发送: {command_name}")
+                return True
+            if not pending['event'].wait(self.timeout):
+                print(f"命令确认超时: {command_name}")
+                return False
+            response = pending['response'] or {}
+            if str(response.get('result', '')).lower() != 'success':
+                reason = response.get('reason') or response.get('result') or 'unknown'
+                print(f"打印机拒绝命令 {command_name}: {reason}")
+                return False
+            print(f"打印机已确认命令: {command_name}")
+            return True
         except Exception as e:
             print(f"命令发送异常: {e}")
             return False
+        finally:
+            self._pending_commands.pop(sequence_id, None)
 
     def pause_print(self) -> bool:
         """暂停打印"""
-        command = {"pause": {"sequence_id": str(int(time.time())), "command": "pause"}}
+        command = {"print": {"sequence_id": self._next_sequence_id(), "command": "pause"}}
         return self._send_mqtt_command(command)
 
     def resume_print(self) -> bool:
         """恢复打印"""
-        command = {"resume": {"sequence_id": str(int(time.time())), "command": "resume"}}
+        command = {"print": {"sequence_id": self._next_sequence_id(), "command": "resume"}}
         return self._send_mqtt_command(command)
 
     def stop_print(self) -> bool:
         """停止打印"""
-        command = {"stop": {"sequence_id": str(int(time.time())), "command": "stop"}}
+        command = {"print": {"sequence_id": self._next_sequence_id(), "command": "stop"}}
         return self._send_mqtt_command(command)
+
+    def request_full_status(self) -> bool:
+        """Request a full status snapshot without waiting for a command ack."""
+        command = {
+            "pushing": {
+                "sequence_id": self._next_sequence_id(),
+                "command": "pushall",
+                "version": 1,
+                "push_target": 1,
+            }
+        }
+        return self._send_mqtt_command(command, wait_for_ack=False)
 
     def on_status_change(self, callback: Callable[[PrinterStatus], None]):
         """
@@ -401,30 +669,41 @@ class BambuPrinterClient:
             fan: 风扇类型 (part, cooling, auxiliary)
             speed: 速度 0-100
         """
-        command = {
-            "fan": {
-                "sequence_id": str(int(time.time())),
-                "command": "set_fan",
-                "fan": fan,
-                "speed": speed
-            }
+        fan_ports = {
+            "part": 1,
+            "cooling": 1,
+            "auxiliary": 2,
+            "chamber": 3,
         }
-        return self._send_mqtt_command(command)
+        if fan not in fan_ports:
+            print(f"不支持的风扇类型: {fan}")
+            return False
+        if isinstance(speed, bool) or not isinstance(speed, int) or not 0 <= speed <= 100:
+            print("风扇速度必须是 0..100 的整数")
+            return False
+        pwm = round(speed * 255 / 100)
+        return self._send_gcode_line(f"M106 P{fan_ports[fan]} S{pwm}")
 
     def set_bed_temp(self, temp: int) -> bool:
         """设置热床温度"""
-        command = {
-            "bed": {
-                "sequence_id": str(int(time.time())),
-                "command": "set_bed",
-                "temp": temp
-            }
-        }
-        return self._send_mqtt_command(command)
+        if isinstance(temp, bool) or not isinstance(temp, int) or not 0 <= temp <= 120:
+            print("热床温度必须是 0..120 的整数")
+            return False
+        return self._send_gcode_line(f"M140 S{temp}")
 
     def home(self) -> bool:
         """归零"""
-        command = {"home": {"sequence_id": str(int(time.time())), "command": "home"}}
+        return self._send_gcode_line("G28")
+
+    def _send_gcode_line(self, line: str) -> bool:
+        """Send a single trusted G-code line through the printer command topic."""
+        command = {
+            "print": {
+                "sequence_id": self._next_sequence_id(),
+                "command": "gcode_line",
+                "param": f"{line.rstrip()}\n",
+            }
+        }
         return self._send_mqtt_command(command)
 
     def __enter__(self):
@@ -438,7 +717,45 @@ class BambuPrinterClient:
 
 
 # 便捷函数
-def discover_printers(timeout: float = 3.0) -> List[Dict[str, str]]:
+def _parse_discovery_packet(
+    data: bytes,
+    source_ip: str,
+) -> Optional[Dict[str, Any]]:
+    """Parse one Bambu SSDP-style NOTIFY announcement."""
+    response = data.decode('utf-8', errors='ignore')
+    lines = response.replace('\r\n', '\n').split('\n')
+    headers: Dict[str, str] = {}
+    for line in lines[1:]:
+        if ':' not in line:
+            continue
+        key, value = line.split(':', 1)
+        headers[key.strip().lower()] = value.strip()
+
+    device_type = headers.get('nt', '').lower()
+    if (
+        'bambulab-com:device:3dprinter' not in device_type
+        and 'devmodel.bambu.com' not in headers
+    ):
+        return None
+
+    location = headers.get('location', '')
+    if '://' in location:
+        location = urlparse(location).hostname or ''
+    ip_address = location or source_ip
+
+    return {
+        'ip': ip_address,
+        'name': headers.get('devname.bambu.com', 'Bambu Printer'),
+        'serial': headers.get('usn', ''),
+        'model': headers.get('devmodel.bambu.com', ''),
+        'signal': headers.get('devsignal.bambu.com', ''),
+        'connection': headers.get('devconnect.bambu.com', ''),
+        'firmware': headers.get('devversion.bambu.com', ''),
+        'port': 2021,
+    }
+
+
+def discover_printers(timeout: float = 6.0) -> List[Dict[str, Any]]:
     """
     发现局域网内的拓竹打印机
 
@@ -448,34 +765,46 @@ def discover_printers(timeout: float = 3.0) -> List[Dict[str, str]]:
     Returns:
         打印机列表 [{'name': 'xxx', 'ip': 'xxx', 'serial': 'xxx'}]
     """
-    printers = []
+    printers: Dict[str, Dict[str, Any]] = {}
+    sockets = []
 
-    # 使用UDP广播发现
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.settimeout(timeout)
+    # Bambu printers announce themselves roughly every five seconds. Depending
+    # on model/firmware, notifications arrive on UDP 2021 or 1990.
+    for port in (2021, 1990):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind(('', port))
+            sock.setblocking(False)
+            sockets.append(sock)
+        except OSError:
+            sock.close()
 
+    if not sockets:
+        print("发现打印机失败: UDP 2021/1990 无法监听，端口可能被切片器占用")
+        return []
+
+    deadline = time.monotonic() + max(0.0, timeout)
     try:
-        # 发送发现请求
-        sock.sendto(b"M-Search: * HTTP/1.1\r\n", ('<broadcast>', 2021))
-
-        while True:
-            try:
-                data, addr = sock.recvfrom(4096)
-                response = data.decode('utf-8', errors='ignore')
-
-                # 解析响应
-                if 'Bambu' in response or 'bambu' in response.lower():
-                    printers.append({
-                        'ip': addr[0],
-                        'name': 'Bambu Printer',
-                        'port': 2021
-                    })
-            except socket.timeout:
+        while sockets:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
                 break
-    except Exception as e:
-        print(f"发现打印机异常: {e}")
+            readable, _, _ = select.select(sockets, [], [], remaining)
+            if not readable:
+                break
+            for sock in readable:
+                try:
+                    data, addr = sock.recvfrom(8192)
+                except (BlockingIOError, OSError):
+                    continue
+                printer = _parse_discovery_packet(data, addr[0])
+                if printer is None:
+                    continue
+                key = printer['serial'] or printer['ip']
+                printers[str(key)] = printer
     finally:
-        sock.close()
+        for sock in sockets:
+            sock.close()
 
-    return printers
+    return list(printers.values())

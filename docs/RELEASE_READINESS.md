@@ -1,0 +1,112 @@
+# Release Readiness
+
+## Current Capability
+
+- The repository now has a documented orchestration layer for Hunyuan3D-1, Hunyuan3D-2, ComfyUI, model conversion, model collection, and Bambu Lab queue management.
+- Root generation entry points are truthful:
+  - `--dry-run` prints commands without loading models.
+  - `--mock` creates a tiny local STL for workflow tests and demos.
+  - `--run-generator` is required before scripts call real Hunyuan3D generation.
+  - root Hunyuan command failures return nonzero with ordinary error output.
+  - Hunyuan3D-1 `auto` mode prefers the verified Docker low-VRAM backend while explicit `native` mode remains available.
+- Bambu queue `add` persists jobs without auto-connecting or starting the printer; upload failures mark jobs failed without sending a print-start command; start-command failures mark jobs failed without entering monitor mode; current-job cancel/pause/resume/stop state changes only proceed after the matching printer command succeeds; `clear` does not discard queued work when stopping the active print fails.
+- `auto_print.py start` processes the queue in the foreground until empty. Runtime state supports control from another CLI process, rejects a second worker, and only adopts an interrupted active task when the printer reports the matching remote filename.
+- The Bambu queue only accepts ready-to-print files (`.gcode`, `.bgcode`, or Bambu/OrcaSlicer project `.3mf` with slice metadata); AI-to-print and continuous-print reject generated source geometry before queueing and instruct the user to convert plus slice first.
+- AI-to-print and continuous-print can use the bundled Bambu Studio bridge through `BAMBU_SLICER_COMMAND`; the bridge requires an existing executable and known-good project template, then auto-scales/orients/arranges/slices and validates the generated project before queueing.
+- `BAMBU_SLICER_OUTPUT_EXT` restricts the expected output extension to `.3mf`, `.gcode`, or `.bgcode`; unsupported values are rejected before slicer execution.
+- Bambu client tests cover default and P1 status fields, MQTT connection callback success/failure/timeout handling, `device/{serial}` topics, full-status requests, queue status serialization, FTPS command construction without credentials in process arguments, empty-file start rejection, `project_file`/`gcode_file` payloads, matched device acknowledgements, command rejection, and pause/resume/stop envelopes.
+- `model_converter.py` returns nonzero for local CLI input failures and reports missing files without tracebacks.
+- `auto_print.py` returns nonzero for local add/remove/cancel/stop/clear failure paths instead of reporting a false-success CLI exit.
+- `ai_to_print.py` returns nonzero when generation does not produce a model, when print is requested without valid printer config, and when `ai_to_print.py discover` finds no printer locally; `--mock --no-print` remains a local success path.
+- `continuous_print.py generate` returns nonzero for missing inputs, no-model generation, or print requested without valid printer config; `continuous_print.py prompts` returns nonzero when the prompt file is missing or empty, when generation fails, or when a generated model cannot be queued, strips UTF-8 BOMs from prompt files, and the local `--mock --no-print` path remains successful.
+- `generate_claude_crabs.py` returns success for `--list` and nonzero for missing Hunyuan3D-1 entrypoint or failed batch generation.
+- `auto_print.py config` rejects host/access-code/serial template printer values before writing local config.
+- AI-to-print and continuous-print entry points reuse the printer config preflight, so template `printer.json` values do not trigger queue creation.
+- AI-to-print and continuous-print entry points do not treat generated STL/OBJ/GLB or generic geometry 3MF as printer-ready files.
+- `model_collector.py` supports isolated model-library roots through `MODEL_COLLECTOR_MODELS_DIR` and returns nonzero for local CLI input failures.
+- `config/env.example` documents optional local environment overrides, including `HUNYUAN3D1_BACKEND`; root orchestration scripts auto-load repository-root `.env` files without overriding shell variables, and `.env` files are ignored.
+- Repository hygiene tests cover local-only runtime/model artifacts, tracked templates, and a 100 MB tracked-file threshold.
+- Requirements tests cover the root print/conversion dependency list.
+- Local tests cover root command construction, mock generation, continuous generation safety, model converter output, model collection CLI gates, Bambu exports, and queue persistence.
+- `scripts/system_preflight.py` provides a non-destructive text/JSON aggregate gate and returns nonzero in strict mode while prerequisites are blocked. It may run a disposable Docker CUDA rasterization probe but does not invoke model inference, slicing, or printer commands.
+
+## Verified Locally
+
+```powershell
+python -m compileall scripts bambu_print
+python -m unittest discover -s tests -v
+python scripts/system_preflight.py --allow-incomplete
+Hunyuan3D-1\venv\Scripts\python.exe -m pip check
+Hunyuan3D-1\venv\Scripts\python.exe Hunyuan3D-1\main.py --help
+python scripts/hunyuan_quick.py text "a small robot" --dry-run --lite
+python scripts/ai_to_print.py text "a small blue gear-shaped cable organizer" --output outputs\integration\text-to-3d --run-generator --no-print
+python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --dry-run --quality lite
+python scripts/ai_to_print.py text "a rabbit" --no-print --mock
+python scripts/ai_to_print.py text "a rabbit" --mock
+python scripts/continuous_print.py generate --prompt "a rabbit" --no-print --mock
+python scripts/continuous_print.py generate --prompt "a rabbit" --mock
+python scripts/continuous_print.py prompts --file prompts.txt --delay 0 --mock --no-print
+python scripts/continuous_print.py prompts --file missing-prompts.txt --delay 0
+python scripts/model_converter.py info outputs/demo/demo.stl
+python scripts/model_converter.py info outputs/validation/hunyuan2_image/validation.glb
+python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb stl validation_hunyuan2
+python scripts/model_converter.py convert outputs/validation/hunyuan2_image/validation.glb 3mf validation_hunyuan2
+python scripts/glb_to_3mf.py outputs/validation/hunyuan2_image/validation.glb models/converted/validation_hunyuan2.3mf
+python scripts/model_converter.py info models/converted/validation_hunyuan2.3mf
+# Requires an ignored local config/printer.json; this machine passes and reads live status:
+python scripts/auto_print.py check-config
+python scripts/auto_print.py status
+# Expected printer discovery gate when no printer is found:
+python scripts/ai_to_print.py discover --timeout 0.1
+python scripts/generate_claude_crabs.py --list
+python scripts/check_comfyui_workflow_assets.py
+python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-server
+python scripts/comfyui_hunyuan_smoke.py --start-server --timeout 600
+python scripts/bambu_slicer_bridge.py outputs/demo/demo.stl outputs/validation/bambu_cli/bridge_demo.gcode.3mf --slicer-exe PATH_TO_BAMBU_STUDIO --template PATH_TO_KNOWN_GOOD_PROJECT
+```
+
+## Not Yet Release-Complete
+
+These items still require environment or hardware changes before the full end-to-end system can be called complete:
+
+- Aggregate preflight currently reports 5 ready areas and 0 blocked areas: both Hunyuan engines, ComfyUI, the Bambu slicer bridge, and local printer configuration are ready.
+
+- Hunyuan3D-1 environment:
+  - `Hunyuan3D-1/venv` now passes `pip check` and `main.py --help`;
+  - root Hunyuan3D-1 wrappers use `auto` to prefer Docker; explicit native mode uses the project venv or `HUNYUAN3D1_PYTHON`;
+  - the ignored local `weights/hunyuanDiT` snapshot is complete at 20 files and 13.5 GiB;
+  - the venv uses PyTorch `2.14.0.dev20260808+cu130`; a real CUDA kernel passed on compute capability 12.0 and the build includes `sm_120`;
+  - Docker passed both low-step smoke generation and a root 25-step text/50-step multiview run that produced an exact 90,000-face OBJ;
+  - optional baking/render paths still require real PyTorch3D/DUSt3R/libigl support.
+- Hunyuan3D-2 direct pipeline:
+  - low-step local validation passed after downloading `hunyuan3d-dit-v2-0/config.yaml`;
+  - `HUNYUAN3D2_MODEL_PATH` can override the default model path for the root wrapper;
+  - full-quality generation settings still need broader runtime and output-quality validation.
+- ComfyUI:
+  - quick test exits 0, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`;
+  - `nodes_math.py` and `nodes_glsl.py` import after installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`;
+  - browser launch at `http://127.0.0.1:8190` rendered the ComfyUI UI;
+  - all 13 unique workflow asset references are present;
+  - a real 5-step API graph produced a watertight GLB with 2,356 vertices and 5,000 faces.
+- Bambu Studio slicer:
+  - the bundled bridge produced a validated P1S project `.3mf` from the demo STL;
+  - the archive contains plate G-code and slice metadata, with a reported estimate of about 38.9 minutes and 5.11 g filament;
+  - the generated Hunyuan3D-1 STL also produced a validated P1S project, estimated at about 34.3 minutes and 7.95 g filament;
+  - a known-good local project template remains required for printer, process, and filament settings.
+- Bambu Lab printer:
+  - an ignored local `config/printer.json` passes validation and Developer Mode is confirmed;
+  - authenticated MQTT/TLS `pushall` returned the active P1S print state, progress, layers, temperatures, error code, and HMS data;
+  - authenticated implicit FTPS uploaded the generated sliced project as `codex_gear_validation.3mf`;
+  - local config preflight is available through `python scripts/auto_print.py config/check-config` and validates Developer Mode confirmation, AMS mapping, timelapse, and timeout values;
+  - `scripts/ai_to_print.py` and `scripts/continuous_print.py` reuse the local preflight before queue creation;
+  - the repository client uses implicit FTPS on TCP 990 for upload and MQTT/TLS on TCP 8883 with `device/{serial}/report` and `device/{serial}/request` for status, commands, and acknowledgements;
+  - Bambu Lab describes Developer Mode MQTT/FTP as unsupported interfaces, so compatibility can change with firmware;
+  - MQTT pause/resume was verified against the active user-started job and restored it to `printing`;
+  - generated-model start/stop remains deferred because that job occupies the plate and HMS `0300310000010001` reports a part-cooling-fan speed/stall warning;
+  - HMS `0500050000010007` appeared transiently after a redundant retry, decoded locally as an MQTT command-validation warning, and cleared from a later snapshot.
+
+## Suggested Next Steps
+
+1. Clear the occupied build plate and resolve the part-cooling-fan HMS before validating start/stop on the uploaded generated model.
+2. Inspect the physical generated mesh and validate texture/baking output when those optional paths are required.
+3. Validate full-quality Hunyuan3D-2 and ComfyUI generation settings and visual quality.

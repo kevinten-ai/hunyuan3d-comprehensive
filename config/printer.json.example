@@ -1,6 +1,10 @@
 {
-  "host": "192.168.1.100",
+  "host": "YOUR_PRINTER_IP",
   "access_code": "YOUR_ACCESS_CODE",
-  "serial": "SNXXX",
-  "method": "mqtt"
+  "serial": "YOUR_PRINTER_SERIAL",
+  "method": "mqtt",
+  "lan_developer_mode": false,
+  "use_ams": false,
+  "ams_mapping": [-1, -1, -1, -1, 0],
+  "timelapse": false
 }
