@@ -151,6 +151,7 @@ class PrintQueue:
         self.queue_file = self.queue_dir / "queue.json"
         self.history_file = self.queue_dir / "history.json"
         self.config_file = self.queue_dir / "config.json"
+        self.runtime_file = self.queue_dir / "runtime.json"
 
         # 队列状态
         self.queue: List[QueuedJob] = []
@@ -221,6 +222,96 @@ class PrintQueue:
                 json.dump(config, f, indent=2)
         except Exception as e:
             print(f"[队列] 保存配置失败: {e}")
+
+    def _read_runtime(self) -> Dict[str, Any]:
+        """Read cross-process queue control state."""
+        default = {
+            'worker_pid': None,
+            'current_job_id': None,
+            'desired_state': 'stopped',
+        }
+        if not self.runtime_file.exists():
+            return default
+        try:
+            with open(self.runtime_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return {**default, **data} if isinstance(data, dict) else default
+        except (OSError, json.JSONDecodeError):
+            return default
+
+    def _update_runtime(self, **updates) -> Dict[str, Any]:
+        """Atomically merge queue runtime state for another CLI process."""
+        state = self._read_runtime()
+        state.update(updates)
+        state['updated_at'] = datetime.now().isoformat()
+        temp_file = self.runtime_file.with_name(
+            f"{self.runtime_file.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+        )
+        with open(temp_file, 'w', encoding='utf-8') as f:
+            json.dump(state, f, indent=2, ensure_ascii=False)
+        os.replace(temp_file, self.runtime_file)
+        return state
+
+    @staticmethod
+    def _pid_is_running(pid: Any) -> bool:
+        try:
+            pid = int(pid)
+            if pid <= 0:
+                return False
+            os.kill(pid, 0)
+            return True
+        except (TypeError, ValueError, OSError):
+            return False
+
+    def _external_worker_state(self) -> Optional[Dict[str, Any]]:
+        state = self._read_runtime()
+        pid = state.get('worker_pid')
+        if pid == os.getpid() or not self._pid_is_running(pid):
+            return None
+        return state
+
+    def _desired_state_for_worker(self) -> str:
+        state = self._read_runtime()
+        if state.get('worker_pid') != os.getpid():
+            return 'running'
+        return str(state.get('desired_state', 'running'))
+
+    def _begin_processing(self) -> bool:
+        if self._worker_thread and self._worker_thread.is_alive():
+            print("[队列] 队列已在运行")
+            return False
+
+        external = self._external_worker_state()
+        if external:
+            print(f"[队列] 队列已由进程 {external['worker_pid']} 运行")
+            return False
+
+        self._stop_event.clear()
+        self._pause_event.clear()
+        self.status = QueueStatus.RUNNING
+        self._update_runtime(
+            worker_pid=os.getpid(),
+            current_job_id=None,
+            desired_state='running',
+        )
+        return True
+
+    def _run_worker(self, exit_when_empty: bool = False):
+        try:
+            self._process_queue(exit_when_empty=exit_when_empty)
+        finally:
+            if self.printer.is_connected():
+                self.printer.disconnect()
+            self._update_runtime(worker_pid=None, current_job_id=None)
+
+    def _connect_for_external_control(self) -> bool:
+        if self.printer.is_connected():
+            return True
+        return self.printer.connect()
+
+    def _disconnect_external_control(self):
+        if self.printer.is_connected():
+            self.printer.disconnect()
 
     def _load_history(self) -> List[Dict]:
         """加载历史记录"""
@@ -355,23 +446,29 @@ class PrintQueue:
             return True
         return self.remove(job_id)
 
-    def start(self):
+    def start(self) -> bool:
         """启动队列处理"""
-        if self._worker_thread and self._worker_thread.is_alive():
-            print("[队列] 队列已在运行")
-            return
-
-        self._stop_event.clear()
-        self._pause_event.clear()
-        self.status = QueueStatus.RUNNING
+        if not self._begin_processing():
+            return False
 
         self._worker_thread = threading.Thread(
-            target=self._process_queue,
+            target=self._run_worker,
             daemon=True,
             name="PrintQueueWorker"
         )
         self._worker_thread.start()
         print("[队列] 队列已启动")
+        return True
+
+    def run_foreground(self) -> bool:
+        """Process the queue in this process until it is empty or stopped."""
+        if not self.queue:
+            print("[队列] 队列为空")
+            return False
+        if not self._begin_processing():
+            return False
+        self._run_worker(exit_when_empty=True)
+        return self.status != QueueStatus.ERROR
 
     def pause(self):
         """暂停队列"""
@@ -382,6 +479,27 @@ class PrintQueue:
                     return False
             self._pause_event.set()
             self.status = QueueStatus.PAUSED
+            self._update_runtime(desired_state='paused')
+            print("[队列] 队列已暂停")
+            return True
+
+        external = self._external_worker_state()
+        if external:
+            if external.get('desired_state') == 'paused':
+                return True
+            if external.get('current_job_id'):
+                if not self._connect_for_external_control():
+                    return False
+                try:
+                    status = self.printer.get_status()
+                    if status.print_status == 'printing' and not self.printer.pause_print():
+                        return False
+                    if status.print_status not in {'printing', 'paused'}:
+                        print(f"[队列] 打印机当前无法暂停: {status.print_status}")
+                        return False
+                finally:
+                    self._disconnect_external_control()
+            self._update_runtime(desired_state='paused')
             print("[队列] 队列已暂停")
             return True
         return False
@@ -397,12 +515,49 @@ class PrintQueue:
             self.status = (
                 QueueStatus.PRINTING if self.current_job else QueueStatus.RUNNING
             )
+            self._update_runtime(desired_state='running')
+            print("[队列] 队列已继续")
+            return True
+
+        external = self._external_worker_state()
+        if external and external.get('desired_state') == 'paused':
+            if external.get('current_job_id'):
+                if not self._connect_for_external_control():
+                    return False
+                try:
+                    status = self.printer.get_status()
+                    if status.print_status == 'paused' and not self.printer.resume_print():
+                        return False
+                    if status.print_status not in {'paused', 'printing'}:
+                        print(f"[队列] 打印机当前无法继续: {status.print_status}")
+                        return False
+                finally:
+                    self._disconnect_external_control()
+            self._update_runtime(desired_state='running')
             print("[队列] 队列已继续")
             return True
         return False
 
     def stop(self) -> bool:
         """停止队列"""
+        external = self._external_worker_state()
+        if external:
+            if external.get('current_job_id'):
+                if not self._connect_for_external_control():
+                    return False
+                try:
+                    status = self.printer.get_status()
+                    if (
+                        status.print_status in {'printing', 'paused'}
+                        and not self.printer.stop_print()
+                    ):
+                        return False
+                finally:
+                    self._disconnect_external_control()
+            self._update_runtime(desired_state='stopped')
+            print("[队列] 队列已停止")
+            return True
+
         if self.current_job:
             if not self.printer.stop_print():
                 print("[队列] 停止打印失败")
@@ -416,6 +571,7 @@ class PrintQueue:
             self.current_job = None
         self._stop_event.set()
         self.status = QueueStatus.STOPPED
+        self._update_runtime(desired_state='stopped')
         print("[队列] 队列已停止")
         return True
 
@@ -429,7 +585,7 @@ class PrintQueue:
         print("[队列] 队列已清空")
         return True
 
-    def _process_queue(self):
+    def _process_queue(self, exit_when_empty: bool = False):
         """队列处理线程"""
         # 连接打印机
         print("[队列] 正在连接打印机...")
@@ -450,6 +606,15 @@ class PrintQueue:
         self.printer.on_status_change(on_status_change)
 
         while not self._stop_event.is_set():
+            desired_state = self._desired_state_for_worker()
+            if desired_state == 'stopped':
+                self._stop_event.set()
+                break
+            if desired_state == 'paused':
+                self.status = QueueStatus.PAUSED
+                time.sleep(0.5)
+                continue
+
             # 检查是否暂停
             if self._pause_event.is_set():
                 time.sleep(0.5)
@@ -458,19 +623,36 @@ class PrintQueue:
             # 获取下一个任务
             if not self.queue:
                 self.status = QueueStatus.IDLE
+                if exit_when_empty:
+                    break
                 print("[队列] 队列为空，等待新任务...")
                 time.sleep(5)
                 continue
 
             self.current_job = self.queue[0]
             self.status = QueueStatus.PRINTING
+            self._update_runtime(current_job_id=self.current_job.id)
 
             print(f"\n[队列] 开始打印: {self.current_job.name}")
-            self.current_job.status = "printing"
-
-            # 发送文件
             filename = Path(self.current_job.filepath).name
-            if not self.printer.send_file(self.current_job.filepath, filename):
+            remote_name = self.printer._normalize_remote_name(filename)
+            adopting_active_print = self.current_job.status == "printing"
+
+            if adopting_active_print:
+                status = self.printer.get_status()
+                active_name = Path(status.model_info).name if status.model_info else ""
+                if (
+                    status.print_status not in {'printing', 'paused'}
+                    or active_name != remote_name
+                ):
+                    print(
+                        "[队列] 无法安全接管之前的任务: "
+                        f"打印机状态={status.print_status}, 文件={active_name or '(未知)'}"
+                    )
+                    self.status = QueueStatus.ERROR
+                    break
+                print(f"[队列] 已接管打印机上的活动任务: {remote_name}")
+            elif not self.printer.send_file(self.current_job.filepath, remote_name):
                 print(f"[队列] 文件发送失败: {self.current_job.filepath}")
                 self.current_job.status = "failed"
                 self.current_job.error_message = "文件发送失败"
@@ -480,32 +662,52 @@ class PrintQueue:
                 self.queue.pop(0)
                 self._save_queue()
                 self.current_job = None
+                self._update_runtime(current_job_id=None)
                 continue
 
-            time.sleep(2)  # 等待文件上传完成
+            if not adopting_active_print:
+                time.sleep(2)  # 等待文件上传完成
 
-            # 开始打印
-            # Use the exact ASCII remote name chosen by send_file().
-            if not self.printer.start_print():
-                print(f"[队列] 打印命令发送失败")
-                self.current_job.status = "failed"
-                self.current_job.error_message = "打印命令发送失败"
-                self._add_to_history(self.current_job)
-                if self._on_job_fail:
-                    self._on_job_fail(self.current_job)
-                self.queue.pop(0)
+                # Use the exact ASCII remote name chosen by send_file().
+                if not self.printer.start_print():
+                    print(f"[队列] 打印命令发送失败")
+                    self.current_job.status = "failed"
+                    self.current_job.error_message = "打印命令发送失败"
+                    self._add_to_history(self.current_job)
+                    if self._on_job_fail:
+                        self._on_job_fail(self.current_job)
+                    self.queue.pop(0)
+                    self._save_queue()
+                    self.current_job = None
+                    self._update_runtime(current_job_id=None)
+                    continue
+
+                self.current_job.status = "printing"
                 self._save_queue()
-                self.current_job = None
-                continue
-
-            # 回调
-            if self._on_job_start:
-                self._on_job_start(self.current_job)
+                if self._on_job_start:
+                    self._on_job_start(self.current_job)
 
             # 监控打印进度
             while not self._stop_event.is_set():
                 if self.current_job is None:
                     break
+                desired_state = self._desired_state_for_worker()
+                if desired_state == 'stopped':
+                    self.current_job.status = "cancelled"
+                    self.current_job.error_message = "队列已停止"
+                    self._add_to_history(self.current_job)
+                    self.queue = [
+                        job for job in self.queue if job.id != self.current_job.id
+                    ]
+                    self._save_queue()
+                    self.current_job = None
+                    self._stop_event.set()
+                    break
+                if desired_state == 'paused':
+                    self.status = QueueStatus.PAUSED
+                    time.sleep(0.5)
+                    continue
+                self.status = QueueStatus.PRINTING
                 status = self.printer.get_status()
 
                 if self.current_job:
@@ -548,10 +750,13 @@ class PrintQueue:
                 time.sleep(3)  # 每3秒检查一次
 
             self.current_job = None
+            self._update_runtime(current_job_id=None)
 
         # 断开连接
         self.printer.disconnect()
-        self.status = QueueStatus.IDLE
+        if self.status not in {QueueStatus.ERROR, QueueStatus.STOPPED}:
+            self.status = QueueStatus.IDLE
+        self._update_runtime(worker_pid=None, current_job_id=None)
         print("\n[队列] 已停止")
 
     def get_status(self) -> Dict[str, Any]:
@@ -562,17 +767,34 @@ class PrintQueue:
             状态字典
         """
         printer_status = self.printer.get_status()
+        runtime = self._read_runtime()
+        worker_active = self._pid_is_running(runtime.get('worker_pid'))
+        current_job = self.current_job
+        if current_job is None and worker_active and runtime.get('current_job_id'):
+            current_job = next(
+                (job for job in self.queue if job.id == runtime['current_job_id']),
+                None,
+            )
+
+        queue_status = self.status.value
+        if worker_active:
+            if runtime.get('desired_state') == 'paused':
+                queue_status = QueueStatus.PAUSED.value
+            elif current_job:
+                queue_status = QueueStatus.PRINTING.value
+            else:
+                queue_status = QueueStatus.RUNNING.value
 
         return {
-            'status': self.status.value,
+            'status': queue_status,
             'queue_length': len(self.queue),
             'current_job': {
-                'id': self.current_job.id,
-                'name': self.current_job.name,
-                'status': self.current_job.status,
-                'progress': self.current_job.progress,
-                'filepath': self.current_job.filepath
-            } if self.current_job else None,
+                'id': current_job.id,
+                'name': current_job.name,
+                'status': current_job.status,
+                'progress': current_job.progress,
+                'filepath': current_job.filepath
+            } if current_job else None,
             'printer': {
                 'print_status': printer_status.print_status,
                 'progress': printer_status.progress,

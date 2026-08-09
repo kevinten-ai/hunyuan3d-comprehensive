@@ -33,6 +33,13 @@ class FakeQueue:
         if self.control_error:
             raise self.control_error
 
+    def run_foreground(self):
+        if self.control_error:
+            raise self.control_error
+        if self.control_result is not None:
+            return self.control_result
+        return True
+
     def pause(self):
         if self.control_error:
             raise self.control_error
@@ -197,6 +204,18 @@ class AutoPrintCliTests(unittest.TestCase):
                     self.assertEqual(auto_print.main(), 1)
 
                 self.assertIn("失败", stdout.getvalue())
+
+    def test_start_runs_queue_in_foreground(self):
+        queue = FakeQueue(control_result=True)
+        stdout = StringIO()
+
+        with patch.object(auto_print, "get_queue", return_value=queue), \
+                patch.object(sys, "argv", ["auto_print.py", "start"]), \
+                patch("sys.stdout", new=stdout):
+            self.assertEqual(auto_print.main(), 0)
+
+        self.assertIn("前台运行", stdout.getvalue())
+        self.assertIn("处理已结束", stdout.getvalue())
 
     def test_stop_clear_return_nonzero_when_queue_refuses_control(self):
         cases = [

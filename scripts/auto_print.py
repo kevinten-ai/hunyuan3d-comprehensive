@@ -343,13 +343,17 @@ def cmd_history(args):
 
 
 def cmd_start(args):
-    """启动队列"""
+    """在前台运行队列直到清空或被停止。"""
     queue = get_queue()
     if queue is None:
         return 1
 
-    queue.start()
-    print("队列已启动")
+    print("队列将在前台运行；可在另一个终端使用 pause/resume/stop 控制。")
+    if not queue.run_foreground():
+        print("错误: 队列未能启动或处理失败")
+        return 1
+    print("队列处理已结束")
+    return 0
 
 
 def cmd_pause(args):

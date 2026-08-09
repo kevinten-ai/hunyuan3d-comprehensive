@@ -15,7 +15,7 @@ GitHub 仓库: https://github.com/kevinten-ai/hunyuan3d-comprehensive
 | ComfyUI | 工作流实跑通过 | 13 个工作流资产齐全，5 步 API 图已生成并验证 watertight GLB |
 | 模型转换 | 已实现 | `scripts/model_converter.py` 使用 `trimesh` 转换/修复 STL、OBJ、GLB 等 |
 | 模型收集 | 已实现 | `scripts/model_collector.py` 管理模型库和 slicer-input 导出 |
-| Bambu 打印队列 | 协议层已实现 | `bambu_print/` 通过 FTPS 上传、MQTT/TLS 读取状态并等待控制命令回执；真实设备闭环仍待验证 |
+| Bambu 打印队列 | 运行与协议层已验证 | `bambu_print/` 通过 FTPS 上传、MQTT/TLS 读取状态并等待命令回执；真实设备已验证上传和暂停/恢复，生成模型的启动/停止仍受物理条件限制 |
 | Bambu 自动切片 | 实跑通过 | `scripts/bambu_slicer_bridge.py` 已生成含 G-code 的 P1S 切片工程 |
 | AI 到打印 | 已安全化 | 默认不再模拟成功；真实生成需 `--run-generator`，演示需 `--mock` |
 
@@ -185,6 +185,10 @@ python scripts/auto_print.py start
 python scripts/auto_print.py status
 python scripts/auto_print.py watch
 ```
+
+`start` 会在当前终端持续处理队列直至清空；运行期间可在另一个终端使用
+`pause`、`resume` 或 `stop`。运行状态写入用户目录下的队列目录，进程中断后只会在
+打印机仍打印同名文件时接管监控，不会重复上传或重复启动。
 
 打印队列只接收 ready-to-print 文件，例如 Bambu/OrcaSlicer 项目 `.3mf`、`.gcode` 或 `.bgcode`。可以直接验证自动切片桥接:
 

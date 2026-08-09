@@ -1,13 +1,17 @@
 import sys
+import os
 import zipfile
 import unittest
+from types import SimpleNamespace
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from bambu_print import PrintQueue, QueueStatus
 from bambu_print.print_queue import QueuedJob
+from bambu_print.printer_client import PrinterStatus
 
 
 def write_bambu_project_3mf(path: Path):
@@ -35,9 +39,18 @@ class FakePrinter:
         self.pause_print_called = False
         self.resume_print_called = False
         self.disconnected = False
+        self.connected = False
 
     def connect(self):
+        self.connected = True
         return True
+
+    def is_connected(self):
+        return self.connected
+
+    @staticmethod
+    def _normalize_remote_name(filename):
+        return filename
 
     def on_status_change(self, _callback):
         return None
@@ -67,6 +80,7 @@ class FakePrinter:
         raise AssertionError("get_status should not run when upload fails")
 
     def disconnect(self):
+        self.connected = False
         self.disconnected = True
 
 
@@ -165,6 +179,91 @@ class PrintQueueTests(unittest.TestCase):
 
             self.assertIn("remaining_time", status["printer"])
             self.assertEqual(status["printer"]["remaining_time"], 0)
+
+    def test_run_foreground_processes_queue_until_empty(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            source = tmp_path / "model.3mf"
+            write_bambu_project_3mf(source)
+            queue = self.make_queue(tmp_path / "queue")
+            printer = FakePrinter()
+            printer.get_status = lambda: PrinterStatus(
+                print_status="completed",
+                progress=100.0,
+                remaining_time=0,
+            )
+            queue.printer = printer
+            queue.add(str(source), name="foreground model")
+
+            self.assertTrue(queue.run_foreground())
+
+            self.assertEqual(queue.list_queue(), [])
+            self.assertEqual(queue.status, QueueStatus.IDLE)
+            self.assertTrue(printer.start_print_called)
+            self.assertTrue(printer.disconnected)
+
+    def test_external_worker_pause_updates_device_and_runtime(self):
+        with TemporaryDirectory() as tmp:
+            queue = self.make_queue(Path(tmp) / "queue")
+            printer = FakePrinter()
+            printer.get_status = lambda: SimpleNamespace(print_status="printing")
+            queue.printer = printer
+            queue._update_runtime(
+                worker_pid=os.getpid() + 1000,
+                current_job_id="job123",
+                desired_state="running",
+            )
+
+            with patch.object(queue, "_pid_is_running", return_value=True):
+                self.assertTrue(queue.pause())
+
+            self.assertTrue(printer.pause_print_called)
+            self.assertTrue(printer.disconnected)
+            self.assertEqual(queue._read_runtime()["desired_state"], "paused")
+
+    def test_external_worker_resume_and_stop_control_device(self):
+        with TemporaryDirectory() as tmp:
+            queue = self.make_queue(Path(tmp) / "queue")
+            printer = FakePrinter()
+            queue.printer = printer
+            queue._update_runtime(
+                worker_pid=os.getpid() + 1000,
+                current_job_id="job123",
+                desired_state="paused",
+            )
+
+            with patch.object(queue, "_pid_is_running", return_value=True):
+                printer.get_status = lambda: SimpleNamespace(print_status="paused")
+                self.assertTrue(queue.resume())
+                printer.get_status = lambda: SimpleNamespace(print_status="printing")
+                self.assertTrue(queue.stop())
+
+            self.assertTrue(printer.resume_print_called)
+            self.assertTrue(printer.stop_print_called)
+            self.assertEqual(queue._read_runtime()["desired_state"], "stopped")
+
+    def test_foreground_restart_adopts_matching_active_print(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            source = tmp_path / "model.3mf"
+            write_bambu_project_3mf(source)
+            queue = self.make_queue(tmp_path / "queue")
+            printer = FakePrinter()
+            statuses = iter([
+                PrinterStatus(print_status="printing", model_info="model.3mf"),
+                PrinterStatus(print_status="completed", progress=100.0),
+            ])
+            printer.get_status = lambda: next(statuses)
+            queue.printer = printer
+            queue.add(str(source), name="recoverable model")
+            queue.queue[0].status = "printing"
+            queue._save_queue()
+
+            self.assertTrue(queue.run_foreground())
+
+            self.assertEqual(printer.send_file_call_count, 0)
+            self.assertEqual(printer.start_print_call_count, 0)
+            self.assertEqual(queue.get_history()[0]["status"], "completed")
 
     def test_upload_failure_marks_job_failed_without_starting_print(self):
         with TemporaryDirectory() as tmp:
