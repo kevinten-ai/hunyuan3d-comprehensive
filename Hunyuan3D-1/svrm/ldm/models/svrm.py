@@ -65,12 +65,10 @@ except Exception as err:
             cv2.INPAINT_TELEA
         )
 
-from ..modules.rendering_neus.mesh import Mesh
 from ..modules.rendering_neus.rasterize import NVDiffRasterizerContext
 
 from ..utils.ops import scale_tensor
 from ..util import count_params, instantiate_from_config
-from ..vis_util import render_func
 
 
 def unwrap_uv(v_pos, t_pos_idx):
@@ -189,22 +187,31 @@ class SVRMModel(torch.nn.Module):
 
         # reduce faces
         if faces_refine.shape[0] > target_face_count:
-            print(f"reduce face: {faces_refine.shape[0]} -> {target_face_count}")
-            mesh = o3d.geometry.TriangleMesh(
-                vertices = o3d.utility.Vector3dVector(vtx_refine),
-                triangles = o3d.utility.Vector3iVector(faces_refine)
+            source_face_count = faces_refine.shape[0]
+            mesh = trimesh.Trimesh(
+                vertices=vtx_refine,
+                faces=faces_refine,
+                process=True,
             )
-            
-            # Function to simplify mesh using Quadric Error Metric Decimation by Garland and Heckbert
-            mesh = mesh.simplify_quadric_decimation(target_face_count, boundary_weight=1.0)
-
-            mesh = Mesh(
-                v_pos = torch.from_numpy(np.asarray(mesh.vertices)).to(self.device),
-                t_pos_idx = torch.from_numpy(np.asarray(mesh.triangles)).to(self.device),
-                v_rgb = torch.from_numpy(np.asarray(mesh.vertex_colors)).to(self.device)
+            simplification_target = max(4, target_face_count // 2)
+            for _ in range(3):
+                if len(mesh.faces) <= target_face_count:
+                    break
+                previous_face_count = len(mesh.faces)
+                simplified = mesh.simplify_quadric_decimation(
+                    face_count=simplification_target,
+                )
+                mesh = simplified
+                if len(mesh.faces) >= previous_face_count:
+                    break
+            vtx_refine = np.asarray(mesh.vertices, dtype=np.float32)
+            faces_refine = np.asarray(mesh.faces, dtype=np.int64)
+            print(
+                f"reduce face: {source_face_count} -> {faces_refine.shape[0]} "
+                f"(target {target_face_count})"
             )
-            vtx_refine = mesh.v_pos.cpu().numpy()
-            faces_refine = mesh.t_pos_idx.cpu().numpy()
+            if faces_refine.shape[0] > target_face_count:
+                print("warning: disconnected or non-manifold geometry prevented the exact face target")
 
         vtx_colors = self.render.forward_points(cur_triplane, torch.tensor(vtx_refine).unsqueeze(0).to(**here))
         vtx_colors = vtx_colors['rgb'].float().squeeze(0).cpu().numpy()
@@ -292,4 +299,3 @@ class SVRMModel(torch.nn.Module):
         mesh.export(glb_path, file_type='glb')
         print(f"=====> generate mesh with texture shading time: {time.time() - st}")
         return obj_path, glb_path
-  

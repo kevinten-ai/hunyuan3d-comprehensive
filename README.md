@@ -10,7 +10,7 @@ GitHub 仓库: https://github.com/kevinten-ai/hunyuan3d-comprehensive
 
 | 模块 | 当前状态 | 说明 |
 |---|---|---|
-| Hunyuan3D-1 | 原生依赖阻塞 | 权重和 `sm_120` CUDA 实算已通过；仍缺 Windows `nvdiffrast` 编译工具链 |
+| Hunyuan3D-1 | Docker 低步数实跑通过 | CUDA 13、`sm_120`、nvdiffrast、xFormers 及 1 步文本到约 1,000 面 OBJ 已验证 |
 | Hunyuan3D-2 | 低步数实跑通过 | 本地图片生成 GLB 已通过；完整质量参数仍需继续验证 |
 | ComfyUI | 工作流实跑通过 | 13 个工作流资产齐全，5 步 API 图已生成并验证 watertight GLB |
 | 模型转换 | 已实现 | `scripts/model_converter.py` 使用 `trimesh` 转换/修复 STL、OBJ、GLB 等 |
@@ -52,7 +52,13 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-Hunyuan3D-1 的完整安装请参考 `Hunyuan3D-1/README_zh_cn.md` 和 `Hunyuan3D-1/env_install.sh`。真实生成还需要下载对应模型权重。
+Hunyuan3D-1 推荐使用 `Hunyuan3D-1/docker-compose.yml` 的 CUDA 13 镜像；原生 Linux 安装参考 `Hunyuan3D-1/README_zh_cn.md` 和 `Hunyuan3D-1/env_install.sh`。真实生成还需要下载对应模型权重。
+
+```powershell
+cd Hunyuan3D-1
+docker compose build
+docker compose run --rm hunyuan3d python scripts/text_to_3d_low_vram.py "a small robot" --output outputs/docker-low-vram
+```
 
 可选环境变量模板:
 
@@ -70,14 +76,14 @@ copy config\env.example .env
 
 根目录脚本会自动加载仓库根目录的 `.env`，但不会覆盖 shell 中已经设置的同名变量。`.env` 只用于本地运行，不能提交到 Git。
 
-先运行统一的只读系统前置检查，集中查看 Hunyuan 权重、ComfyUI 工作流资产、外部切片器和打印机配置门槛:
+先运行统一系统前置检查，集中查看 Hunyuan 权重、ComfyUI 工作流资产、外部切片器和打印机配置门槛:
 
 ```powershell
 python scripts/system_preflight.py --allow-incomplete
 python scripts/system_preflight.py --json --allow-incomplete
 ```
 
-不带 `--allow-incomplete` 时，只要存在已知阻塞项就返回非 0，适合作为发布门禁。这个检查不加载模型、不运行切片器、不连接打印机，因此 “ready” 只表示本地前置条件已就位，不等于真实端到端验证通过。
+不带 `--allow-incomplete` 时，只要存在已知阻塞项就返回非 0，适合作为发布门禁。Hunyuan3D-1 原生运行时不可用时，检查会创建一次性 Docker 容器执行 CUDA/nvdiffrast 小栅格化；它不加载模型、不运行切片器、不连接打印机，因此 “ready” 仍只表示前置条件已就位。
 
 ## 生成模型
 
@@ -95,10 +101,11 @@ python scripts/hunyuan_quick.py image Hunyuan3D-2/assets/demo.png --dry-run --qu
 ### 真实文字生成
 
 ```powershell
-python scripts/hunyuan_quick.py text "a small robot" --lite
+cd Hunyuan3D-1
+docker compose run --rm hunyuan3d python scripts/text_to_3d_low_vram.py "a small robot" --output outputs/docker-low-vram
 ```
 
-这会调用 `Hunyuan3D-1/main.py`。需要 Hunyuan3D-1 依赖、权重和兼容 GPU/CPU 环境。
+该入口把文生图、去背景、多视图和网格重建放在独立进程中，适用于 16 GB 显卡。默认生成 `mesh_vertex_colors.obj`；增加 `--texture-mapping` 可生成 GLB。
 
 ### 真实图片生成
 

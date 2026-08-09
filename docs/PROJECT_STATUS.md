@@ -11,15 +11,15 @@
 
 | Area | Status | Evidence | Remaining gate |
 |---|---|---|---|
-| Hunyuan3D-1 text-to-3D | Weights and CUDA runtime verified | The local 13.5 GiB `weights/hunyuanDiT` snapshot is complete; Torch `2.14.0.dev20260808+cu130` executed a CUDA kernel with `sm_120` support | Install CUDA Toolkit and MSVC, compile `nvdiffrast`, then rerun real low-step generation |
+| Hunyuan3D-1 text-to-3D | Real low-step Docker validation passed | CUDA 13 / Torch 2.10, `sm_120`, nvdiffrast rasterization, xFormers attention, and isolated 1-step text-to-approximately-1,000-face OBJ stages passed | Full-step quality and optional texture/baking/render paths need broader validation |
 | Hunyuan3D-2 image-to-3D | Low-step local validation passed | `scripts/hunyuan2_image.py` generated `outputs/validation/hunyuan2_image/validation.glb` | Full-quality generation still needs broader validation |
 | ComfyUI workflow | Real low-step graph passed | All 13 workflow references are present; `scripts/comfyui_hunyuan_smoke.py --start-server` produced a watertight GLB with 2,356 vertices and 5,000 faces | Full-quality graphs need broader time, memory, and output-quality validation |
 | Model conversion | Implemented and tested | `scripts/model_converter.py`, `scripts/glb_to_3mf.py`; GLB Scene info plus GLB-to-STL/3MF conversion and converter CLI failure paths verified | Real meshes still need print-quality review |
 | Model collection | Implemented and tested | `scripts/model_collector.py`; isolated add/export test, CLI failure return-code tests, and `MODEL_COLLECTOR_MODELS_DIR` override | Real model library curation |
 | Bambu printer queue | Implemented queue layer | `bambu_print/print_queue.py`; tests verify default manual start, status serialization, ready-to-print file enforcement including generic 3MF rejection, upload-failure and start-command-failure job handling, current-job cancel/pause/resume/stop failure handling, clear-on-stop-failure handling, and CLI failure return codes; `scripts/auto_print.py config/check-config` validates local config fields and rejects tracked template placeholders without connecting | Real printer validation |
 | Bambu LAN protocol | Implemented, locally tested | `bambu_print/printer_client.py`; tests verify implicit FTPS command construction without exposing credentials in process arguments, `device/{serial}` MQTT topics, P1 status fields, `pushall`, `project_file`/`gcode_file` payloads, matched device acknowledgements, rejections, and control-command envelopes | FTPS upload and MQTT start/pause/resume/stop validation against a real Bambu printer |
-| Hunyuan command bridge | Implemented wrapper | `scripts/hunyuan_quick.py`, `scripts/hunyuan2_image.py`; dry-run and local failure return-code paths verified | Real Hunyuan3D-1 generation requires the remaining native runtime dependency |
-| Full AI-to-print | Explicit modes | `scripts/ai_to_print.py` uses `--mock` for demo and `--run-generator` for real commands; local success and failure paths are covered; source models require validated slicer output before queueing; the Bambu Studio CLI bridge has separately completed a real P1S slice | Real Hunyuan3D-1 generation and real-printer transport/control validation |
+| Hunyuan command bridge | Implemented wrapper | Native wrappers remain available; `Hunyuan3D-1/scripts/text_to_3d_low_vram.py` provides the verified 16 GB Docker path | Root AI-to-print commands do not yet select the Docker backend automatically |
+| Full AI-to-print | Explicit modes | `scripts/ai_to_print.py` uses `--mock` for demo and `--run-generator` for real commands; source models require validated slicer output before queueing; Hunyuan3D-1 and slicing have separate real local evidence | Wire the chosen Docker generator command into local config and validate real-printer transport/control |
 | Continuous generation and print | Explicit modes | `scripts/continuous_print.py` uses explicit mock/real modes, preserves failed prompts for retry, validates printer config, and requires ready-to-print slicer output; the Bambu Studio CLI bridge has separately completed a real P1S slice | Real generator and real-printer transport/control validation |
 | Claude crab batch prompts | Command builder verified | `scripts/generate_claude_crabs.py`; `--list` success and missing Hunyuan3D-1 entrypoint failure return-code paths verified | Real Hunyuan3D-1 generation requires the remaining native runtime dependency |
 | Aggregate system preflight | Implemented and tested | `scripts/system_preflight.py` reports Hunyuan weights, ComfyUI assets, slicer settings, and printer config in text or JSON; strict mode returns nonzero for blockers | It is a read-only prerequisite audit, not real inference/slicing/printing |
@@ -44,8 +44,8 @@ Repository hygiene tests verify these local-only paths plus common large model f
 
 ## Current Priority
 
-1. Install the Hunyuan3D-1 native build toolchain, compile `nvdiffrast`, and complete a real low-step text-to-3D run.
-2. Enable LAN Only or Developer Mode and validate FTPS upload plus MQTT start/pause/resume/stop against a real Bambu printer.
+1. Enable LAN Only or Developer Mode and validate FTPS upload plus MQTT start/pause/resume/stop against a real Bambu printer.
+2. Run full-step Hunyuan3D-1 generation and inspect texture/mesh quality before slicing.
 3. Decide whether pre-existing untracked files should be committed, ignored, or left as local-only user assets.
 
 ## Hardware and Runtime Probe
@@ -55,7 +55,7 @@ Current local probe results:
 - GPU: NVIDIA GeForce RTX 5060 Ti, driver 591.86, 16 GB VRAM.
 - System Python: PyTorch `2.12.0.dev20260405+cu130`; CUDA is available and sees the RTX 5060 Ti.
 - Hunyuan3D-1 venv: `pip check` and `main.py --help` pass. The complete 20-file, 13.5 GiB `weights/hunyuanDiT` snapshot is present in the ignored local weights directory. PyTorch `2.14.0.dev20260808+cu130` detects compute capability 12.0, includes `sm_120`, and passed a real CUDA kernel check.
-- Hunyuan3D-1 low-step generation reached SVRM initialization, then stopped at `ModuleNotFoundError: nvdiffrast`. This core mesh reconstruction dependency must be compiled from source on Windows after installing CUDA Toolkit and MSVC; no generation output was produced.
+- Hunyuan3D-1 Docker image uses CUDA 13.0.2 runtime, Torch `2.10.0+cu130`, pinned nvdiffrast 0.4.0, xFormers 0.0.35, libigl 2.5.1, and fast-simplification 0.1.13. A real CUDA rasterization covered 72 pixels on compute capability 12.0. The isolated low-VRAM stages generated `Hunyuan3D-1/outputs/docker-smoke/mesh_vertex_colors.obj`, simplifying 50,934 faces to 1,048 (the requested target was 1,000; disconnected/non-manifold low-step geometry prevented an exact target).
 - Local environment overrides are documented in `config/env.example`; root orchestration scripts auto-load repository-root `.env` files without overriding shell variables. `HUNYUAN3D1_PYTHON` controls the Hunyuan3D-1 Python executable and `HUNYUAN3D2_MODEL_PATH` controls the default Hunyuan3D-2 model path.
 - Hunyuan3D-1 with system Python: entry import fails because installed `diffusers` expects `Qwen3ForCausalLM`, which the installed `transformers` does not provide.
 - Hunyuan3D-2 local weights: safetensors files exist under `Hunyuan3D-2/tencent/Hunyuan3D-2`. After downloading `hunyuan3d-dit-v2-0/config.yaml`, low-step image-to-3D validation completed and wrote `outputs/validation/hunyuan2_image/validation.glb`.
@@ -63,7 +63,7 @@ Current local probe results:
 - Slicer: `scripts/bambu_slicer_bridge.py` structurally merges a known-good project settings profile into source geometry, auto-scales/orients/arranges it, invokes Bambu Studio CLI, and rejects output without Bambu slice metadata. A real local run converted `outputs/demo/demo.stl` into a validated P1S project containing `Metadata/plate_1.gcode`; the reported estimate was about 38.9 minutes and 5.11 g filament.
 - Printer: local screenshots confirm Bambu Studio is connected to a real P1S with AMS and show a completed print; a read-only probe also found Bambu Studio using MQTT/TLS on port 8883. The repository client now follows the LAN protocol boundary: implicit FTPS on port 990, MQTT/TLS on port 8883, `device/{serial}/report` and `device/{serial}/request`, P1 status fields, and printer-reported command results. This is locally unit-tested but not a real-device claim. `scripts/auto_print.py discover --timeout 3` found no printer and `config/printer.json` is absent, so transport/control validation remains pending. Configuration supports Developer Mode confirmation, AMS mapping, timelapse, and timeout options without tracking printer secrets.
 - Slicer output policy: `BAMBU_SLICER_OUTPUT_EXT` must be `.3mf`, `.gcode`, or `.bgcode`; any other output extension is rejected before the slicer runs.
-- Aggregate preflight: `python scripts/system_preflight.py --allow-incomplete` currently reports 3 ready areas and 2 blocked areas. Hunyuan3D-2, ComfyUI, and the Bambu slicer bridge are ready; the blockers are Hunyuan3D-1 `nvdiffrast` and missing `config/printer.json`. Strict mode exits 1.
+- Aggregate preflight falls back to a disposable Docker CUDA/nvdiffrast/xFormers probe when the native Hunyuan3D-1 venv is incomplete. The remaining expected local blocker is missing `config/printer.json`; strict mode exits 1 until printer configuration is supplied.
 
 ## Local Verification Completed
 

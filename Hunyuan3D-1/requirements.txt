@@ -1,28 +1,4 @@
---find-links https://download.pytorch.org/whl/cu121
+--index-url https://download.pytorch.org/whl/cu121
 torch==2.6.0
 torchvision==0.21.0
-diffusers==0.30.0
-numpy==1.26.4
-transformers==4.44.2
-rembg==2.0.56
-tqdm
-omegaconf
-matplotlib
-opencv-python==4.10.0.84
-opencv-python-headless==4.10.0.84
-scikit-image==0.24.0
-tifffile==2024.8.30
-imageio
-jaxtyping
-einops
-SentencePiece
-accelerate
-trimesh
-PyMCubes
-xatlas
-# Requires MSVC Build Tools/CMake on Windows if no compatible wheel is available.
-libigl
-typeguard
-open3d
-ninja
-roma
+-r requirements-core.txt

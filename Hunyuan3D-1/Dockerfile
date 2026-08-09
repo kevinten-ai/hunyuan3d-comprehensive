@@ -1,40 +1,72 @@
-# 使用支持 CUDA 12.1 的官方 PyTorch 镜像
-FROM pytorch/pytorch:2.5.1-cuda12.1-cudnn9-devel
+# syntax=docker/dockerfile:1.7
+FROM nvidia/cuda:13.0.2-devel-ubuntu24.04 AS builder
 
-# 设置环境变量，避免交互式安装
-ENV DEBIAN_FRONTEND=noninteractive
-ENV TZ=Asia/Shanghai
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Asia/Shanghai \
+    PATH=/opt/venv/bin:$PATH \
+    TORCH_CUDA_ARCH_LIST=12.0 \
+    FORCE_CUDA=1 \
+    MAX_JOBS=1
 
-# 安装系统级依赖
-RUN apt-get update && apt-get install -y \
-    git \
-    ninja-build \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libosmesa6-dev \
-    freeglut3-dev \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    freeglut3-dev \
+    git \
+    libgl1 \
+    libglib2.0-0 \
+    libgomp1 \
+    libosmesa6-dev \
+    ninja-build \
+    python3-dev \
+    python3-pip \
+    python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
-# 设置工作目录
+RUN python3 -m venv /opt/venv
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --upgrade pip setuptools wheel
+
+# CUDA 13 wheels include Blackwell (sm_120) support. Keep them separate from
+# the upstream Windows/cu121 lock so Docker does not downgrade the runtime.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install \
+      torch==2.10.0 torchvision==0.25.0 \
+      --index-url https://download.pytorch.org/whl/cu130
+
 WORKDIR /app
+COPY requirements-core.txt ./requirements-core.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install -r requirements-core.txt
 
-# 安装 pytorch3d (从预编译源安装，避免漫长的编译)
-RUN pip install --no-cache-dir iopath fvcore
-RUN pip install --no-cache-dir "git+https://github.com/facebookresearch/pytorch3d.git"
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install \
+      "git+https://github.com/NVlabs/nvdiffrast.git@253ac4fcea7de5f396371124af597e6cc957bfae" \
+      --no-build-isolation
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --no-deps \
+      xformers==0.0.35 \
+      --index-url https://download.pytorch.org/whl/cu130
 
-# 安装 nvdiffrast
-RUN pip install --no-cache-dir git+https://github.com/NVlabs/nvdiffrast.git
+RUN python -c "import torch; assert torch.version.cuda == '13.0'; print('PyTorch CUDA 13 wheel ready')" \
+    && python -c "import nvdiffrast.torch, xformers; print('Hunyuan3D-1 native extensions ready')"
 
-# 复制项目依赖并安装
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+FROM nvidia/cuda:13.0.2-runtime-ubuntu24.04 AS runtime
 
-# 修复 Pydantic 兼容性
-RUN pip install --no-cache-dir pydantic==1.10.12
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Asia/Shanghai \
+    PATH=/opt/venv/bin:$PATH
 
-# 暴露 Gradio 默认端口
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
+    libglib2.0-0 \
+    libgomp1 \
+    libglut3.12 \
+    libosmesa6 \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/venv /opt/venv
+
+WORKDIR /app
 EXPOSE 8080
-
-# 默认运行 app.py (启动 Web UI)
 CMD ["python", "app.py"]

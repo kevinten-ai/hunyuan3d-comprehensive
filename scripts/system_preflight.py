@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only local prerequisite audit for the complete 3D-to-print workflow."""
+"""Local prerequisite audit for the complete 3D-to-print workflow."""
 
 from __future__ import annotations
 
@@ -121,10 +121,75 @@ print(json.dumps(payload))
     return True, f"CUDA {required_arch} 与 nvdiffrast 运行时探测通过。", evidence
 
 
+def _probe_hunyuan1_docker(root: Path) -> tuple[bool, str, tuple[str, ...]]:
+    compose_file = root / "docker-compose.yml"
+    dockerfile = root / "Dockerfile"
+    evidence = (str(compose_file), str(dockerfile))
+    if shutil.which("docker") is None:
+        return False, "Docker CLI is unavailable.", evidence
+    if not compose_file.is_file() or not dockerfile.is_file():
+        return False, "Hunyuan3D-1 Docker configuration is incomplete.", evidence
+
+    probe = """
+import json
+import torch
+import nvdiffrast.torch as dr
+import xformers
+
+ctx = dr.RasterizeCudaContext()
+pos = torch.tensor([[[-0.8, -0.8, 0.0, 1.0], [0.8, -0.8, 0.0, 1.0], [0.0, 0.8, 0.0, 1.0]]], device="cuda")
+tri = torch.tensor([[0, 1, 2]], device="cuda", dtype=torch.int32)
+rast, _ = dr.rasterize(ctx, pos, tri, resolution=[16, 16])
+torch.cuda.synchronize()
+payload = {
+    "torch": torch.__version__,
+    "cuda_runtime": torch.version.cuda,
+    "capability": list(torch.cuda.get_device_capability(0)),
+    "covered_pixels": int((rast[..., 3] > 0).sum().item()),
+    "xformers": xformers.__version__,
+}
+print("HUNYUAN_DOCKER_PROBE=" + json.dumps(payload))
+"""
+    try:
+        result = subprocess.run(
+            ["docker", "compose", "run", "--rm", "hunyuan3d", "python", "-c", probe],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=180,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return False, f"Docker runtime probe failed: {exc}", evidence
+    if result.returncode != 0:
+        detail = result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "unknown error"
+        return False, f"Docker runtime probe failed: {detail}", evidence
+
+    marker = "HUNYUAN_DOCKER_PROBE="
+    payload_line = next(
+        (line for line in result.stdout.splitlines() if line.startswith(marker)),
+        "",
+    )
+    try:
+        payload = json.loads(payload_line.removeprefix(marker))
+    except json.JSONDecodeError as exc:
+        return False, f"Docker runtime probe output is invalid: {exc}", evidence
+
+    runtime_evidence = evidence + (
+        f"torch={payload.get('torch')} cuda={payload.get('cuda_runtime')}",
+        f"capability={payload.get('capability')} xformers={payload.get('xformers')}",
+        f"nvdiffrast_covered_pixels={payload.get('covered_pixels')}",
+    )
+    if payload.get("capability") != [12, 0] or payload.get("covered_pixels", 0) <= 0:
+        return False, "Docker CUDA/nvdiffrast execution probe failed.", runtime_evidence
+    return True, "Docker CUDA 13, sm_120, nvdiffrast, and xFormers probe passed.", runtime_evidence
+
+
 def _check_hunyuan1(
     project_root: Path,
     environ: Mapping[str, str],
     runtime_probe=_probe_hunyuan1_runtime,
+    docker_probe=_probe_hunyuan1_docker,
 ) -> PreflightCheck:
     root = project_root / "Hunyuan3D-1"
     weights = root / "weights"
@@ -135,8 +200,10 @@ def _check_hunyuan1(
     missing: list[str] = []
     if not (root / "main.py").is_file():
         missing.append("Hunyuan3D-1/main.py")
-    if not _runtime_exists(runtime):
-        missing.append(f"Python runtime ({runtime})")
+    has_docker_config = (root / "Dockerfile").is_file() and (root / "docker-compose.yml").is_file()
+    runtime_exists = _runtime_exists(runtime)
+    if not runtime_exists and not has_docker_config:
+        missing.append(f"Python runtime ({runtime}) or Docker configuration")
 
     text_weights = weights / "hunyuanDiT"
     if not (text_weights / "model_index.json").is_file() or not _has_weight_file(text_weights):
@@ -155,7 +222,23 @@ def _check_hunyuan1(
             (str(root),),
         )
 
-    runtime_ready, runtime_message, runtime_evidence = runtime_probe(runtime)
+    if runtime_exists:
+        runtime_ready, runtime_message, runtime_evidence = runtime_probe(runtime)
+    else:
+        runtime_ready = False
+        runtime_message = f"Native Python runtime is unavailable: {runtime}"
+        runtime_evidence = (runtime,)
+    if not runtime_ready and has_docker_config:
+        docker_ready, docker_message, docker_evidence = docker_probe(root)
+        if docker_ready:
+            runtime_ready, runtime_message, runtime_evidence = (
+                docker_ready,
+                docker_message,
+                docker_evidence,
+            )
+        else:
+            runtime_message = f"{runtime_message} Docker fallback: {docker_message}"
+            runtime_evidence = runtime_evidence + docker_evidence
     if not runtime_ready:
         return PreflightCheck(
             "hunyuan1",
@@ -165,12 +248,20 @@ def _check_hunyuan1(
             runtime_evidence + (str(text_weights),),
         )
 
+    smoke_mesh = root / "outputs" / "docker-smoke" / "mesh_vertex_colors.obj"
+    if smoke_mesh.is_file() and smoke_mesh.stat().st_size > 0:
+        ready_message = "运行入口、必需权重和 CUDA 核心依赖已就位；低步数文本到网格证据已存在。"
+        ready_evidence = runtime_evidence + (str(text_weights), str(smoke_mesh))
+    else:
+        ready_message = "运行入口、必需权重和 CUDA 核心依赖已就位；仍需执行真实低步数生成验证。"
+        ready_evidence = runtime_evidence + (str(text_weights),)
+
     return PreflightCheck(
         "hunyuan1",
         "Hunyuan3D-1 text-to-3D",
         "ready",
-        "运行入口、必需权重和 CUDA 核心依赖已就位；仍需执行真实低步数生成验证。",
-        runtime_evidence + (str(text_weights),),
+        ready_message,
+        ready_evidence,
     )
 
 
@@ -430,11 +521,17 @@ def collect_preflight(
     project_root: Path = PROJECT_ROOT,
     environ: Mapping[str, str] | None = None,
     runtime_probe=_probe_hunyuan1_runtime,
+    docker_probe=_probe_hunyuan1_docker,
 ) -> list[PreflightCheck]:
     root = Path(project_root).resolve()
     values = os.environ if environ is None else environ
     return [
-        _check_hunyuan1(root, values, runtime_probe=runtime_probe),
+        _check_hunyuan1(
+            root,
+            values,
+            runtime_probe=runtime_probe,
+            docker_probe=docker_probe,
+        ),
         _check_hunyuan2(root, values),
         _check_comfyui(root),
         _check_slicer(values),

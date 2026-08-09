@@ -126,6 +126,29 @@ class SystemPreflightTests(unittest.TestCase):
             self.assertEqual(hunyuan1.status, "blocked")
             self.assertIn("nvdiffrast", hunyuan1.message)
 
+    def test_hunyuan1_docker_runtime_can_replace_native_runtime(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            environ = self._create_ready_layout(root)
+            h1 = root / "Hunyuan3D-1"
+            (h1 / "Dockerfile").write_text("FROM test", encoding="utf-8")
+            (h1 / "docker-compose.yml").write_text("services: {}", encoding="utf-8")
+
+            checks = collect_preflight(
+                root,
+                environ=environ,
+                runtime_probe=lambda runtime: (False, "missing nvdiffrast", (runtime,)),
+                docker_probe=lambda docker_root: (
+                    True,
+                    "docker runtime ready",
+                    (str(docker_root / "Dockerfile"), "capability=[12, 0]"),
+                ),
+            )
+            hunyuan1 = next(check for check in checks if check.check_id == "hunyuan1")
+
+            self.assertEqual(hunyuan1.status, "ready")
+            self.assertIn("Dockerfile", " ".join(hunyuan1.evidence))
+
     def test_bambu_bridge_requires_explicit_executable(self):
         with TemporaryDirectory() as tmp:
             template = Path(tmp) / "template.3mf"

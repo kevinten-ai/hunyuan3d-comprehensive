@@ -89,11 +89,12 @@ These checks require hardware, model weights, or local services that cannot be p
   - root text wrappers now prefer `HUNYUAN3D1_PYTHON`, then `Hunyuan3D-1/venv/Scripts/python.exe`, then the current interpreter.
 - Optional local environment variables are documented in `config/env.example`; root orchestration scripts auto-load repository-root `.env` files without overriding shell variables, and `.env` / `.env.*` remain ignored.
 - Hunyuan3D-2 image wrapper defaults to `HUNYUAN3D2_MODEL_PATH` when `--model-path` is not supplied.
-- Hunyuan3D-1 real text-to-3D generation is still gated:
+- Hunyuan3D-1 real low-step text-to-3D passed through the CUDA 13 Docker path:
   - the complete 20-file, 13.5 GiB `Hunyuan3D-1/weights/hunyuanDiT` snapshot is present locally and remains ignored by Git;
-  - the venv Torch build is `2.14.0.dev20260808+cu130`; compute capability 12.0, `sm_120` inclusion, and a real CUDA kernel all passed;
-  - a real one-step text/image and one-step shape attempt stopped during SVRM initialization at `ModuleNotFoundError: nvdiffrast`; Windows needs CUDA Toolkit and MSVC before this dependency can be compiled from source;
-  - baking/render extras still need real PyTorch3D/DUSt3R/libigl support if `--do_bake` or `--do_render` is required.
+  - the runtime reports Torch `2.10.0+cu130`, compute capability 12.0, and a real nvdiffrast triangle with 72 covered pixels;
+  - the 16 GB low-VRAM flow ran text-to-image, background removal, one-step lite multiview generation, and xFormers-backed SVRM in isolated processes;
+  - SVRM generated `Hunyuan3D-1/outputs/docker-smoke/mesh_vertex_colors.obj` and reduced 50,934 faces to 1,048 for a 1,000-face target; the low-step mesh is not watertight and needs repair before printing;
+  - baking/GIF extras still require optional PyTorch3D/DUSt3R support and were intentionally excluded from the core image.
 - Hunyuan3D-2 low-step local validation passed after adding `hunyuan3d-dit-v2-0/config.yaml` to the ignored local model folder. Command used:
 
 ```powershell
@@ -108,7 +109,7 @@ python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id=
 - GLB-to-STL and GLB-to-3MF conversion are verified against `outputs/validation/hunyuan2_image/validation.glb` using both `scripts/model_converter.py` and the dedicated `scripts/glb_to_3mf.py` wrapper. The generated `models/converted/validation_hunyuan2.3mf` is readable by `model_converter.py info` and reports watertight output in this local run.
 - ComfyUI quick test exits successfully, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`. All 13 unique workflow references are present. `python scripts/comfyui_hunyuan_smoke.py --start-server --timeout 600` completed a real 5-step API graph and produced a watertight GLB with 2,356 vertices and 5,000 faces.
 - `scripts/bambu_slicer_bridge.py` completed a real Bambu Studio CLI slice from the demo STL. The validated P1S project contains `Metadata/plate_1.gcode` and slice metadata; Bambu Studio reported about 38.9 minutes and 5.11 g filament.
-- `python scripts/system_preflight.py --allow-incomplete` currently reports 3 ready areas (Hunyuan3D-2, ComfyUI, and Bambu slicing) and 2 blocked areas (Hunyuan3D-1 `nvdiffrast` and Bambu printer config). The strict command exits 1 as expected.
+- `python scripts/system_preflight.py --allow-incomplete` now accepts either the native Hunyuan3D-1 runtime or the verified Docker fallback. Missing `config/printer.json` remains the expected local blocker, so strict mode exits 1.
 - Local screenshots confirm Bambu Studio is connected to a real P1S with AMS and show a completed print. A read-only connection check found an established Studio MQTT/TLS session on port 8883, while `python scripts/auto_print.py discover --timeout 3` returned no printer. These observations confirm the hardware/Studio path, not the repository's direct protocol path. Repository printer validation is pending because `config/printer.json` is not present. The client now constructs implicit FTPS uploads on port 990 without placing the access code in process arguments, uses `device/{serial}/report` and `device/{serial}/request`, parses P1 `gcode_state`/`mc_percent`/layer/temperature fields, requests `pushall`, builds `project_file` and `gcode_file` commands, and waits for a matching printer-reported result before accepting a command. Unit tests cover these paths plus queue and CLI failures. Real FTPS upload and MQTT start/pause/resume/stop remain unverified against the printer. Bambu Lab describes Developer Mode MQTT/FTP as unsupported interfaces, so firmware changes are a compatibility risk.
 
 ## Release Gate

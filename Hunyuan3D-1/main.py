@@ -33,7 +33,7 @@ warnings.simplefilter('ignore', category=UserWarning)
 warnings.simplefilter('ignore', category=FutureWarning)
 warnings.simplefilter('ignore', category=DeprecationWarning)
 
-from infer import Text2Image, Removebg, Image2Views, Views2Mesh, GifRenderer
+from infer import Text2Image, Removebg, Image2Views, Views2Mesh
 from third_party.check import check_bake_available
 
 MeshBaker = None
@@ -143,7 +143,9 @@ if __name__ == "__main__":
             align_times = args.bake_align_times
         )
             
-    if check_bake_available():
+    if args.do_render:
+        from infer.gif_render import GifRenderer
+
         gif_renderer = GifRenderer(device=args.device)
         
     print(f"Init Models cost {time.time()-st}s")
