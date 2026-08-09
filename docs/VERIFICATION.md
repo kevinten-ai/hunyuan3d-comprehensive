@@ -15,6 +15,8 @@ python -m unittest tests.test_repository_hygiene -v
 python -m unittest tests.test_requirements -v
 python -m unittest tests.test_model_converter_cli -v
 python -m unittest tests.test_model_collector_cli tests.test_model_collector -v
+python scripts/system_preflight.py --allow-incomplete
+python scripts/system_preflight.py --json --allow-incomplete
 Hunyuan3D-1\venv\Scripts\python.exe -m pip check
 Hunyuan3D-1\venv\Scripts\python.exe Hunyuan3D-1\main.py --help
 python -c "from scripts import hunyuan2_image; import os; os.environ['HUNYUAN3D2_MODEL_PATH']='custom/model/path'; print(hunyuan2_image.default_model_path())"
@@ -64,11 +66,13 @@ The `auto_print.py config` and `auto_print.py check-config` commands validate th
 
 `scripts/generate_claude_crabs.py --list` returns success without loading models. Generation commands return nonzero when the Hunyuan3D-1 entrypoint is missing or the batch does not complete successfully.
 
+`scripts/system_preflight.py` is read-only. Strict mode returns nonzero while any known local prerequisite is blocked; `--allow-incomplete` keeps report generation successful, and `--json` emits the same findings for automation. A ready result only proves that required local files and configuration fields are present; it does not execute model inference, a slicer, a ComfyUI graph, or a printer connection.
+
 ## External Checks
 
 These checks require hardware, model weights, or local services that cannot be proven by static tests alone:
 
-- Hunyuan3D-1 real text-to-3D generation requires model weights and a compatible Python/CUDA environment.
+- Hunyuan3D-1 real text-to-3D generation requires the remaining native `nvdiffrast` build dependency.
 - Hunyuan3D-2 real image-to-3D generation requires model weights and a compatible Python/CUDA environment.
 - ComfyUI Hunyuan3D workflow validation still requires aligning the example workflow asset paths, then loading and executing a workflow graph.
 - Bambu Lab validation requires printer IP, access code, serial number, and local network control enabled.
@@ -83,8 +87,9 @@ These checks require hardware, model weights, or local services that cannot be p
 - Optional local environment variables are documented in `config/env.example`; root orchestration scripts auto-load repository-root `.env` files without overriding shell variables, and `.env` / `.env.*` remain ignored.
 - Hunyuan3D-2 image wrapper defaults to `HUNYUAN3D2_MODEL_PATH` when `--model-path` is not supplied.
 - Hunyuan3D-1 real text-to-3D generation is still gated:
-  - `Hunyuan3D-1/weights/hunyuanDiT` is missing locally;
-  - the venv Torch build is `2.5.1+cu121` and warns that RTX 5060 Ti sm_120 is unsupported;
+  - the complete 20-file, 13.5 GiB `Hunyuan3D-1/weights/hunyuanDiT` snapshot is present locally and remains ignored by Git;
+  - the venv Torch build is `2.14.0.dev20260808+cu130`; compute capability 12.0, `sm_120` inclusion, and a real CUDA kernel all passed;
+  - a real one-step text/image and one-step shape attempt stopped during SVRM initialization at `ModuleNotFoundError: nvdiffrast`; Windows needs CUDA Toolkit and MSVC before this dependency can be compiled from source;
   - baking/render extras still need real PyTorch3D/DUSt3R/libigl support if `--do_bake` or `--do_render` is required.
 - Hunyuan3D-2 low-step local validation passed after adding `hunyuan3d-dit-v2-0/config.yaml` to the ignored local model folder. Command used:
 
@@ -99,7 +104,8 @@ python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id=
 ```
 - GLB-to-STL and GLB-to-3MF conversion are verified against `outputs/validation/hunyuan2_image/validation.glb` using both `scripts/model_converter.py` and the dedicated `scripts/glb_to_3mf.py` wrapper. The generated `models/converted/validation_hunyuan2.3mf` is readable by `model_converter.py info` and reports watertight output in this local run.
 - ComfyUI quick test exits successfully, detects CUDA, and loads `ComfyUI-Hunyuan3DWrapper`. After installing `simpleeval`, `blake3`, `PyOpenGL`, and `glfw`, `nodes_glsl.py` and `nodes_math.py` no longer fail to import. A temporary browser validation at `http://127.0.0.1:8190` rendered the ComfyUI UI (`Unsaved Workflow`, `Manager`, queue status, zoom controls). `python scripts/check_comfyui_workflow_assets.py --allow-missing` verifies the example workflow gates: 13 asset references checked, 7 unique required assets missing, and 2 unique optional/downloadable assets missing in the current local checkout.
-- Printer validation is pending because `config/printer.json` is not present. `python scripts/auto_print.py config/check-config` is the local preflight gate before network/printer validation, and the AI-to-print/continuous-print entry points now reuse it. Unit tests locally verify default `PrinterStatus.remaining_time`, MQTT connection callback success/failure/timeout handling, MQTT report parsing, queue status serialization, ready-to-print queue file enforcement, generic 3MF rejection, source-model rejection before AI/continuous queueing, external slicer-command success/failure handling, `BAMBU_SLICER_OUTPUT_EXT` output extension rejection before slicer execution, upload-failure job handling without starting print, start-command-failure job handling without monitoring, current-job cancel/pause/resume/stop failure handling, clear-on-stop-failure handling, empty-file start rejection, HTTP upload success/failure return values, Bambu `project_file` command payload construction, rejection of host/access-code/serial template printer config across the auto-print entry points, AI-to-print and continuous-print no-model failures, AI-to-print no-printer discovery failures, and clean nonzero CLI failure paths.
+- `python scripts/system_preflight.py --allow-incomplete` currently reports 1 ready area (Hunyuan3D-2 local model snapshot) and 4 blocked areas (Hunyuan3D-1 `nvdiffrast`, ComfyUI required assets, external slicer command, and Bambu printer config). The strict command exits 1 as expected.
+- Local screenshots confirm Bambu Studio is connected to a real P1S with AMS and show a completed print. A read-only connection check found an established Studio MQTT/TLS session on port 8883, while `python scripts/auto_print.py discover --timeout 3` returned no printer. These observations confirm the hardware/Studio path, not the repository's direct protocol path. Repository printer validation is pending because `config/printer.json` is not present. `python scripts/auto_print.py config/check-config` is the local preflight gate before network/printer validation, and the AI-to-print/continuous-print entry points now reuse it. Unit tests locally verify default `PrinterStatus.remaining_time`, MQTT connection callback success/failure/timeout handling, MQTT report parsing, queue status serialization, ready-to-print queue file enforcement, generic 3MF rejection, source-model rejection before AI/continuous queueing, external slicer-command success/failure handling, `BAMBU_SLICER_OUTPUT_EXT` output extension rejection before slicer execution, upload-failure job handling without starting print, start-command-failure job handling without monitoring, current-job cancel/pause/resume/stop failure handling, clear-on-stop-failure handling, empty-file start rejection, HTTP upload success/failure return values, Bambu `project_file` command payload construction, rejection of host/access-code/serial template printer config across the auto-print entry points, AI-to-print and continuous-print no-model failures, AI-to-print no-printer discovery failures, and clean nonzero CLI failure paths.
 
 ## Release Gate
 
@@ -109,6 +115,7 @@ Before publishing or opening a PR, verify:
 git status --short
 python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
+python scripts/system_preflight.py
 ```
 
 Do not stage `.env`, `config/printer.json`, virtual environments, model weights, generated queues, or large generated output files.

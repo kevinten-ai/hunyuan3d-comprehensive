@@ -89,16 +89,22 @@ def _candidate_note(comfyui_dir: Path, node_type: str, asset: str, expected: Pat
     if node_type in {"Hy3DModelLoader", "Hy3D_2_1SimpleMeshGen"} and not expected.exists():
         checkpoints = comfyui_dir / "models" / "checkpoints"
         if checkpoints.exists():
-            wants_multiview = "mv" in asset.lower()
+            asset_name = asset.lower()
+            wants_multiview = "mv" in asset_name
+            wants_fast = "fast" in asset_name
             candidates = [
                 path
                 for path in checkpoints.glob("*.safetensors")
                 if "hunyuan3d" in path.name.lower()
                 and ("mv" in path.name.lower()) == wants_multiview
+                and ("fast" in path.name.lower()) == wants_fast
             ]
             if candidates:
                 joined = ", ".join(str(path) for path in candidates[:3])
-                return f"Candidate checkpoint file(s) found outside diffusion_models: {joined}"
+                return (
+                    "Candidate checkpoint file(s) found outside diffusion_models; "
+                    f"verify variant compatibility before linking: {joined}"
+                )
     return ""
 
 

@@ -86,6 +86,35 @@ class CheckComfyUIWorkflowAssetsTests(unittest.TestCase):
 
             self.assertIn("Candidate checkpoint", checks[0].note)
 
+    def test_fast_multiview_model_does_not_suggest_normal_multiview_checkpoint(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            comfyui = root / "ComfyUI"
+            workflow = root / "workflow.json"
+            checkpoints = comfyui / "models" / "checkpoints"
+            checkpoints.mkdir(parents=True)
+            (checkpoints / "hunyuan3d-dit-v2-mv.safetensors").write_bytes(b"ok")
+            workflow.write_text(
+                json.dumps(
+                    {
+                        "nodes": [
+                            {
+                                "id": 1,
+                                "type": "Hy3DModelLoader",
+                                "widgets_values": [
+                                    "hy3dgen\\hunyuan3d-dit-v2-0-mv-fast-fp16.safetensors"
+                                ],
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            checks = check_workflow_assets(workflow, comfyui_dir=comfyui)
+
+            self.assertEqual(checks[0].note, "")
+
 
 if __name__ == "__main__":
     unittest.main()

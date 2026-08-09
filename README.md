@@ -65,6 +65,15 @@ copy config\env.example .env
 
 根目录脚本会自动加载仓库根目录的 `.env`，但不会覆盖 shell 中已经设置的同名变量。`.env` 只用于本地运行，不能提交到 Git。
 
+先运行统一的只读系统前置检查，集中查看 Hunyuan 权重、ComfyUI 工作流资产、外部切片器和打印机配置门槛:
+
+```powershell
+python scripts/system_preflight.py --allow-incomplete
+python scripts/system_preflight.py --json --allow-incomplete
+```
+
+不带 `--allow-incomplete` 时，只要存在已知阻塞项就返回非 0，适合作为发布门禁。这个检查不加载模型、不运行切片器、不连接打印机，因此 “ready” 只表示本地前置条件已就位，不等于真实端到端验证通过。
+
 ## 生成模型
 
 ### Dry run 验证命令
@@ -247,6 +256,7 @@ python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
 python -m unittest tests.test_ai_to_print -v
 python -m unittest tests.test_continuous_print -v
+python scripts/system_preflight.py --allow-incomplete
 python scripts/hunyuan_quick.py text "a small robot" --dry-run
 python scripts/check_comfyui_workflow_assets.py --allow-missing
 # Expected to report a missing local secret and exit nonzero until config/printer.json exists:

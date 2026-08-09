@@ -8,6 +8,7 @@ This handoff summarizes the current delivery state for the local Hunyuan3D + Com
 - Root generation scripts avoid false success: dry runs only print commands, mock mode creates tiny local STL files for demos, and real generation requires explicit `--run-generator`.
 - Local CLI failure paths return nonzero for Hunyuan quick generation, AI-to-print no-model flows, continuous print no-model flows, model conversion input errors, model collection input errors, Claude crab generation gates, and Bambu queue failures.
 - Printer configuration has a local preflight gate. Template values in `config/printer.json.example` are rejected before queue creation or network attempts.
+- `scripts/system_preflight.py` provides a read-only aggregate gate for Hunyuan weights, ComfyUI workflow assets, slicer configuration, and printer configuration. It does not claim real generation, slicing, or printer connectivity.
 - Current release evidence is maintained in `docs/VERIFICATION.md` and `docs/RELEASE_READINESS.md`.
 
 ## Install And Run
@@ -18,7 +19,10 @@ From the repository root:
 python -m pip install -r requirements-print.txt
 copy config\env.example .env
 copy config\printer.json.example config\printer.json
+python scripts/system_preflight.py --allow-incomplete
 ```
+
+Use `python scripts/system_preflight.py` without `--allow-incomplete` as a strict local release gate, or add `--json --allow-incomplete` for machine-readable status reporting.
 
 `requirements-print.txt` covers the root printer, queue, conversion, and repair helpers (`paho-mqtt`, `requests`, `numpy`, `trimesh`, and `numpy-stl`). Hunyuan3D-1 and Hunyuan3D-2 keep their upstream dependency instructions in their own folders.
 
@@ -84,15 +88,16 @@ Use the release gate before publishing or changing PR state:
 git status --short
 python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
+python scripts/system_preflight.py --allow-incomplete
 ```
 
 See `docs/VERIFICATION.md` for the detailed command list and expected nonzero local gates. See `docs/RELEASE_READINESS.md` for the current capability and external gate summary.
 
 ## Remaining Risks
 
-- Hunyuan3D-1 real text-to-3D is not complete locally because `weights/hunyuanDiT` is missing and the Torch stack still needs RTX 50-series sm_120 validation.
+- Hunyuan3D-1 weights are complete and the Torch CUDA `sm_120` path is verified, but real text-to-3D still stops at the missing native `nvdiffrast` dependency. Windows needs CUDA Toolkit and MSVC before compiling it from source.
 - Hunyuan3D-2 has passed a low-step local validation, but full-quality settings still need broader runtime and output-quality validation.
 - ComfyUI quick test and browser launch have passed, but example workflow execution still needs model/input asset alignment.
-- Bambu Lab MQTT connection confirmation failure/timeout paths are covered locally, but upload/start/pause/resume/stop still require a real printer, valid `config/printer.json`, local network access, and protocol validation.
+- Bambu Studio is visibly connected to a real P1S with AMS, but the repository discovery command found no printer. Direct upload/start/pause/resume/stop still require a valid local `config/printer.json`, local network access, and protocol validation.
 - Generated outputs, local model workspace files, continuous-print state files, queue state, model weights, virtual environments, `.env`, and `config/printer.json` should remain untracked.
 - Repository hygiene tests verify that common large model artifacts such as `.safetensors`, `.ckpt`, `.bin`, `.onnx`, generated GLB/3MF outputs, local ComfyUI assets, printer config, and `.env` remain ignored while tracked templates stay visible.

@@ -127,6 +127,20 @@ class ReleaseDocsTests(unittest.TestCase):
                 self.assertIn("output extension", content)
                 self.assertIn("reject", content.lower())
 
+    def test_release_docs_document_aggregate_system_preflight(self):
+        for relative_path in [
+            "README.md",
+            "docs/HANDOFF.md",
+            "docs/PROJECT_STATUS.md",
+            "docs/RELEASE_READINESS.md",
+            "docs/VERIFICATION.md",
+        ]:
+            with self.subTest(path=relative_path):
+                content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+
+                self.assertIn("scripts/system_preflight.py", content)
+                self.assertIn("--allow-incomplete", content)
+
     def test_bambu_package_examples_use_copy_safe_placeholders(self):
         old_example_values = [
             "192.168.1.100",

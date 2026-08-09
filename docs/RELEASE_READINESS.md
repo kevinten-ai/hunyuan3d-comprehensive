@@ -25,12 +25,14 @@
 - Repository hygiene tests cover local-only runtime/model artifacts, tracked templates, and a 100 MB tracked-file threshold.
 - Requirements tests cover the root print/conversion dependency list.
 - Local tests cover root command construction, mock generation, continuous generation safety, model converter output, model collection CLI gates, Bambu exports, and queue persistence.
+- `scripts/system_preflight.py` provides a read-only text/JSON aggregate gate and returns nonzero in strict mode while Hunyuan, ComfyUI, slicer, or printer prerequisites are blocked.
 
 ## Verified Locally
 
 ```powershell
 python -m compileall scripts bambu_print
 python -m unittest discover -s tests -v
+python scripts/system_preflight.py --allow-incomplete
 Hunyuan3D-1\venv\Scripts\python.exe -m pip check
 Hunyuan3D-1\venv\Scripts\python.exe Hunyuan3D-1\main.py --help
 python scripts/hunyuan_quick.py text "a small robot" --dry-run --lite
@@ -61,11 +63,14 @@ python ComfyUI/main.py --quick-test-for-ci --disable-auto-launch --dont-print-se
 
 These items still require environment or hardware changes before the full end-to-end system can be called complete:
 
+- Aggregate preflight currently reports 1 ready area and 4 blocked areas. Run `python scripts/system_preflight.py --allow-incomplete` for the human-readable report or add `--json`; run without `--allow-incomplete` for the strict nonzero release gate.
+
 - Hunyuan3D-1 environment:
   - `Hunyuan3D-1/venv` now passes `pip check` and `main.py --help`;
   - root Hunyuan3D-1 wrappers prefer the project venv or `HUNYUAN3D1_PYTHON`;
-  - `weights/hunyuanDiT` is missing locally, so text-to-3D generation has not completed;
-  - `Hunyuan3D-1/venv` Torch still needs RTX 5060 Ti sm_120-compatible validation;
+  - the ignored local `weights/hunyuanDiT` snapshot is complete at 20 files and 13.5 GiB;
+  - the venv uses PyTorch `2.14.0.dev20260808+cu130`; a real CUDA kernel passed on compute capability 12.0 and the build includes `sm_120`;
+  - a low-step generation attempt reached SVRM initialization but failed because the core `nvdiffrast` dependency is missing; Windows requires CUDA Toolkit and MSVC to compile it from source;
   - optional baking/render paths still require real PyTorch3D/DUSt3R/libigl support.
 - Hunyuan3D-2 direct pipeline:
   - low-step local validation passed after downloading `hunyuan3d-dit-v2-0/config.yaml`;
@@ -77,6 +82,8 @@ These items still require environment or hardware changes before the full end-to
   - browser launch at `http://127.0.0.1:8190` rendered the ComfyUI UI;
   - `scripts/check_comfyui_workflow_assets.py` reports 7 unique required missing assets and 2 unique optional/downloadable missing assets for the local example workflows.
 - Bambu Lab printer:
+  - local screenshots confirm Bambu Studio is connected to a real P1S with AMS and show a completed print, but this is not repository protocol validation;
+  - `scripts/auto_print.py discover --timeout 3` found no printer even though the Studio process had an established port 8883 session;
   - `config/printer.json` is absent;
   - local config preflight is available through `python scripts/auto_print.py config/check-config`;
   - `scripts/ai_to_print.py` and `scripts/continuous_print.py` reuse the local preflight before queue creation;
@@ -85,7 +92,7 @@ These items still require environment or hardware changes before the full end-to
 
 ## Suggested Next Steps
 
-1. Add `Hunyuan3D-1/weights/hunyuanDiT`, then install/update the Hunyuan3D-1 Torch stack for RTX 50-series support and run a real low-step text-to-3D validation.
+1. Install CUDA Toolkit and Visual Studio Build Tools, compile `nvdiffrast` in the Hunyuan3D-1 venv, then rerun the real low-step text-to-3D validation.
 2. Keep a complete Hunyuan3D-2 local model snapshot, including `config.yaml`, then validate full-quality generation settings.
 3. Align ComfyUI example workflow assets and model paths, then run a Hunyuan3D workflow graph end to end.
 4. Create local `config/printer.json` from `config/printer.json.example`, then validate Bambu queue commands on the real printer.
