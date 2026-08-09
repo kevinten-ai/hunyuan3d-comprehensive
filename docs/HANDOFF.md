@@ -24,15 +24,15 @@ python scripts/system_preflight.py --allow-incomplete
 
 Use `python scripts/system_preflight.py` without `--allow-incomplete` as a strict local release gate, or add `--json --allow-incomplete` for machine-readable status reporting.
 
-`requirements-print.txt` covers the root printer, queue, conversion, and repair helpers (`paho-mqtt`, `requests`, `numpy`, `trimesh`, and `numpy-stl`). Hunyuan3D-1 and Hunyuan3D-2 keep their upstream dependency instructions in their own folders.
+`requirements-print.txt` covers the root printer, queue, conversion, and repair helpers (`paho-mqtt`, `numpy`, `trimesh`, and `numpy-stl`). FTPS upload uses the system `curl` executable so the access code can be supplied through standard input instead of process arguments. Hunyuan3D-1 and Hunyuan3D-2 keep their upstream dependency instructions in their own folders.
 
-Edit `.env` only for local overrides such as `HUNYUAN3D1_PYTHON`, `HUNYUAN3D2_MODEL_PATH`, and `MODEL_COLLECTOR_MODELS_DIR`. Root orchestration scripts auto-load `.env` from the repository root without overriding variables already set in the shell. The tracked template is `config/env.example`. Do not commit `.env`.
+Edit `.env` only for local overrides such as `HUNYUAN3D1_PYTHON`, `HUNYUAN3D2_MODEL_PATH`, `MODEL_COLLECTOR_MODELS_DIR`, and `BAMBU_PRINTER_CA_CERT`. Root orchestration scripts auto-load `.env` from the repository root without overriding variables already set in the shell. When the CA path is omitted, the printer client also checks `resources/cert/printer.cer` next to `BAMBU_SLICER_EXE`. The tracked template is `config/env.example`. Do not commit `.env`.
 
 Set `BAMBU_SLICER_EXE` and `BAMBU_SLICER_TEMPLATE` to Bambu Studio and a known-good project profile, then use `python scripts/bambu_slicer_bridge.py "{input}" "{output}"` as `BAMBU_SLICER_COMMAND`. The bridge auto-scales, orients, arranges, slices, and validates its project `.3mf`. AI-to-print and continuous-print only continue queueing after that ready-file validation passes.
 
 `BAMBU_SLICER_OUTPUT_EXT` controls the expected output extension and must remain `.3mf`, `.gcode`, or `.bgcode`; unsupported values are rejected before slicer execution.
 
-Edit `config/printer.json` with real Bambu Lab values before printer validation. Replace `YOUR_PRINTER_IP`, `YOUR_ACCESS_CODE`, and `YOUR_PRINTER_SERIAL` before running queue commands. Do not commit `config/printer.json`; keep `config/printer.json.example` as the tracked template.
+Edit `config/printer.json` with real Bambu Lab values before printer validation. Replace `YOUR_PRINTER_IP`, `YOUR_ACCESS_CODE`, and `YOUR_PRINTER_SERIAL`, then set `lan_developer_mode` only after enabling LAN Only or Developer Mode on the printer. Optional `use_ams`, `ams_mapping`, and `timelapse` fields control the print command. Do not commit `config/printer.json`; keep `config/printer.json.example` as the tracked template.
 
 ## Generate Models
 
@@ -63,9 +63,11 @@ python scripts/ai_to_print.py text "a rabbit" --run-generator --no-print
 Configure and validate the local printer config first:
 
 ```powershell
-python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
+python scripts/auto_print.py config --host YOUR_PRINTER_IP --serial YOUR_PRINTER_SERIAL --developer-mode
 python scripts/auto_print.py check-config
 ```
+
+The config command prompts for the Access Code without echoing it, keeping the secret out of shell history and process arguments. The LAN client uploads over implicit FTPS on TCP 990, then uses MQTT/TLS on TCP 8883 with `device/{serial}/report` and `device/{serial}/request` for status, commands, and matched device acknowledgements. Bambu Lab documents Developer Mode MQTT/FTP as unsupported interfaces, so firmware updates require renewed real-device validation. Add `--use-ams --ams-slot 0` when a specific AMS slot is required.
 
 Queueing a model does not automatically start printing:
 
@@ -100,6 +102,6 @@ See `docs/VERIFICATION.md` for the detailed command list and expected nonzero lo
 - Hunyuan3D-1 weights are complete and the Torch CUDA `sm_120` path is verified, but real text-to-3D still stops at the missing native `nvdiffrast` dependency. Windows needs CUDA Toolkit and MSVC before compiling it from source.
 - Hunyuan3D-2 has passed a low-step local validation, but full-quality settings still need broader runtime and output-quality validation.
 - ComfyUI quick test, all 13 workflow asset references, and a real low-step API graph have passed; full-quality graphs remain a performance and visual-quality follow-up.
-- Bambu Studio is visibly connected to a real P1S with AMS, but the repository discovery command found no printer. Direct upload/start/pause/resume/stop still require a valid local `config/printer.json`, local network access, and protocol validation.
+- Bambu Studio is visibly connected to a real P1S with AMS, but the repository discovery command found no printer. The repository's FTPS/MQTT protocol construction and failure paths are unit-tested, while direct upload/start/pause/resume/stop still require a valid local `config/printer.json`, enabled LAN Only or Developer Mode, local network access, and real-device validation.
 - Generated outputs, local model workspace files, continuous-print state files, queue state, model weights, virtual environments, `.env`, and `config/printer.json` should remain untracked.
 - Repository hygiene tests verify that common large model artifacts such as `.safetensors`, `.ckpt`, `.bin`, `.onnx`, generated GLB/3MF outputs, local ComfyUI assets, printer config, and `.env` remain ignored while tracked templates stay visible.

@@ -68,7 +68,7 @@ def setup_printer():
         return None
 
     config = load_printer_config()
-    from scripts.auto_print import print_config_validation
+    from scripts.auto_print import print_config_validation, printer_options_from_config
 
     if not print_config_validation(config, show_success=False):
         return None
@@ -77,9 +77,10 @@ def setup_printer():
         queue = PrintQueue(
             printer_host=config['host'],
             access_code=config['access_code'],
-            serial=config['serial']
+            serial=config['serial'],
+            printer_options=printer_options_from_config(config),
         )
-        print(f"[OK] 已连接到打印机: {config['host']}")
+        print(f"[OK] 已初始化打印机队列: {config['host']}")
         return queue
     except Exception as e:
         print(f"错误: 无法连接到打印机: {e}")
@@ -426,7 +427,7 @@ def main():
 
     # discover - 发现打印机
     discover_parser = subparsers.add_parser('discover', help='发现打印机')
-    discover_parser.add_argument('--timeout', type=float, default=3.0, help='搜索超时时间')
+    discover_parser.add_argument('--timeout', type=float, default=6.0, help='监听公告的秒数')
 
     args = parser.parse_args()
 

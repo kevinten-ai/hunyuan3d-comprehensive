@@ -15,7 +15,7 @@ GitHub 仓库: https://github.com/kevinten-ai/hunyuan3d-comprehensive
 | ComfyUI | 工作流实跑通过 | 13 个工作流资产齐全，5 步 API 图已生成并验证 watertight GLB |
 | 模型转换 | 已实现 | `scripts/model_converter.py` 使用 `trimesh` 转换/修复 STL、OBJ、GLB 等 |
 | 模型收集 | 已实现 | `scripts/model_collector.py` 管理模型库和 slicer-input 导出 |
-| Bambu 打印队列 | 已实现基础层 | `bambu_print/` 管理队列、状态、MQTT 控制命令 |
+| Bambu 打印队列 | 协议层已实现 | `bambu_print/` 通过 FTPS 上传、MQTT/TLS 读取状态并等待控制命令回执；真实设备闭环仍待验证 |
 | Bambu 自动切片 | 实跑通过 | `scripts/bambu_slicer_bridge.py` 已生成含 G-code 的 P1S 切片工程 |
 | AI 到打印 | 已安全化 | 默认不再模拟成功；真实生成需 `--run-generator`，演示需 `--mock` |
 
@@ -66,6 +66,7 @@ copy config\env.example .env
 - `BAMBU_SLICER_EXE`: 指向 Bambu Studio 可执行文件。
 - `BAMBU_SLICER_TEMPLATE`: 指向已在 Bambu Studio 中验证过的工程 3MF 或导出的 project-settings JSON。
 - `BAMBU_SLICER_COMMAND`: 为 AI-to-print / continuous-print 配置自动切片桥接命令。
+- `BAMBU_PRINTER_CA_CERT`: 可选的 Bambu `printer.cer` 路径；未设置时会在 `BAMBU_SLICER_EXE` 旁自动查找。
 
 根目录脚本会自动加载仓库根目录的 `.env`，但不会覆盖 shell 中已经设置的同名变量。`.env` 只用于本地运行，不能提交到 Git。
 
@@ -146,18 +147,24 @@ copy config\printer.json.example config\printer.json
   "host": "YOUR_PRINTER_IP",
   "access_code": "YOUR_ACCESS_CODE",
   "serial": "YOUR_PRINTER_SERIAL",
-  "method": "mqtt"
+  "method": "mqtt",
+  "lan_developer_mode": false,
+  "use_ams": false,
+  "ams_mapping": [-1, -1, -1, -1, 0],
+  "timelapse": false
 }
 ```
 
 配置也可以通过命令写入:
 
 ```powershell
-python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
+python scripts/auto_print.py config --host YOUR_PRINTER_IP --serial YOUR_PRINTER_SERIAL --developer-mode
 python scripts/auto_print.py check-config
 ```
 
-`config` 写入前也会运行同一套本地配置检查；请把示例 IP、访问码和序列号替换为真实打印机信息。
+`config` 会隐藏输入 Access Code，避免把凭据留在 shell 历史和进程参数中；写入前也会运行同一套本地配置检查。请把示例 IP 和序列号替换为真实打印机信息。需要 AMS 时增加 `--use-ams --ams-slot 0`，其中槽位范围为 0 到 15。
+
+直接局域网控制需要打印机启用 LAN Only 模式或 Developer Mode。客户端使用隐式 FTPS（TCP 990）上传文件，并通过 MQTT/TLS（TCP 8883）的 `device/{serial}/report` 和 `device/{serial}/request` 主题读取状态、发送命令和等待设备回执。Bambu Lab 将 Developer Mode 的 MQTT/FTP 接口标记为不受官方支持，因此固件升级后应重新执行真实设备验证。
 
 常用命令:
 

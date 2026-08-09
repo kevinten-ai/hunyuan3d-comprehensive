@@ -6,7 +6,7 @@
 
 **Architecture:** Keep Tencent Hunyuan3D-1, Tencent Hunyuan3D-2, and ComfyUI as upstream engines. Harden the root project as the orchestration layer: command wrappers, model conversion, model library management, printer queue management, configuration, tests, and documentation.
 
-**Tech Stack:** Python 3, argparse, subprocess, pathlib, unittest/pytest-compatible tests, trimesh for model conversion, paho-mqtt/requests for Bambu printer integration, GitHub master branch as release source.
+**Tech Stack:** Python 3, argparse, subprocess, pathlib, unittest/pytest-compatible tests, trimesh for model conversion, paho-mqtt plus system curl/FTPS for Bambu printer integration, GitHub master branch as release source.
 
 ---
 

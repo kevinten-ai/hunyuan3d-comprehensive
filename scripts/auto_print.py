@@ -10,7 +10,7 @@
 
 示例:
     # 从仓库根目录配置打印机
-    python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
+    python scripts/auto_print.py config --host YOUR_PRINTER_IP --serial YOUR_PRINTER_SERIAL
 
     # 添加打印任务
     python scripts/auto_print.py add ./plate.gcode --name "我的模型"
@@ -34,6 +34,7 @@
 import sys
 import os
 import argparse
+import getpass
 import json
 from pathlib import Path
 from typing import Optional
@@ -43,6 +44,9 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from bambu_print import PrintQueue, ConnectionType, discover_printers
+from scripts.local_env import load_project_env
+
+load_project_env(PROJECT_ROOT)
 
 # 配置文件路径
 CONFIG_DIR = PROJECT_ROOT / "config"
@@ -102,7 +106,43 @@ def validate_printer_config(config: Optional[dict]) -> tuple[list[str], list[str
             f"method={method!r} 当前不能用于自动打印队列；请使用 mqtt。"
         )
 
+    for field in ("lan_developer_mode", "use_ams", "timelapse"):
+        if field in config and not isinstance(config[field], bool):
+            errors.append(f"字段 {field} 必须是 JSON boolean。")
+
+    mapping = config.get("ams_mapping", [-1, -1, -1, -1, 0])
+    if (
+        not isinstance(mapping, list)
+        or len(mapping) != 5
+        or any(not isinstance(slot, int) or slot < -1 or slot > 15 for slot in mapping)
+    ):
+        errors.append("ams_mapping 必须是包含 5 个 -1..15 整数的数组。")
+    elif config.get("use_ams", False) and all(slot == -1 for slot in mapping):
+        errors.append("use_ams=true 时 ams_mapping 至少需要一个有效 AMS 槽位。")
+
+    for field, default in (("timeout", 10), ("upload_timeout", 600)):
+        value = config.get(field, default)
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            errors.append(f"字段 {field} 必须是正整数秒数。")
+
+    if not errors and config.get("lan_developer_mode") is not True:
+        warnings.append(
+            "现代 Bambu 固件通常需要在打印机上启用 LAN Developer Mode，"
+            "否则 FTPS/MQTT 直连可能被拒绝。"
+        )
+
     return errors, warnings
+
+
+def printer_options_from_config(config: dict) -> dict:
+    """Extract non-secret printer behavior options for BambuPrinterClient."""
+    return {
+        "use_ams": bool(config.get("use_ams", False)),
+        "ams_mapping": list(config.get("ams_mapping", [-1, -1, -1, -1, 0])),
+        "timelapse": bool(config.get("timelapse", False)),
+        "timeout": int(config.get("timeout", 10)),
+        "upload_timeout": int(config.get("upload_timeout", 600)),
+    }
 
 
 def print_config_validation(config: Optional[dict], show_success: bool = True) -> bool:
@@ -123,7 +163,7 @@ def print_config_validation(config: Optional[dict], show_success: bool = True) -
     if errors:
         print(
             "请运行: python scripts/auto_print.py config --host YOUR_PRINTER_IP "
-            "--access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL"
+            "--serial YOUR_PRINTER_SERIAL"
         )
         return False
     return True
@@ -131,11 +171,22 @@ def print_config_validation(config: Optional[dict], show_success: bool = True) -
 
 def cmd_config(args):
     """配置打印机"""
+    access_code = args.access_code
+    if not access_code:
+        if not sys.stdin.isatty():
+            print("错误: 非交互环境必须通过 --access-code 提供访问码。")
+            return 1
+        access_code = getpass.getpass("打印机 Access Code（输入不会显示）: ").strip()
+
     config = {
         'host': args.host,
-        'access_code': args.access_code,
+        'access_code': access_code,
         'serial': args.serial,
-        'method': args.method
+        'method': args.method,
+        'lan_developer_mode': args.developer_mode,
+        'use_ams': args.use_ams,
+        'ams_mapping': [-1, -1, -1, -1, args.ams_slot],
+        'timelapse': args.timelapse,
     }
 
     if not print_config_validation(config, show_success=False):
@@ -179,7 +230,8 @@ def get_queue() -> Optional[PrintQueue]:
         printer_host=config['host'],
         access_code=config['access_code'],
         serial=config['serial'],
-        connection_type=ConnectionType(config.get('method', 'mqtt'))
+        connection_type=ConnectionType(config.get('method', 'mqtt')),
+        printer_options=printer_options_from_config(config),
     )
 
 
@@ -403,7 +455,7 @@ def main():
         epilog="""
 示例:
   # 首次使用需要配置打印机
-  python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
+  python scripts/auto_print.py config --host YOUR_PRINTER_IP --serial YOUR_PRINTER_SERIAL
   python scripts/auto_print.py check-config
 
   # 添加打印任务
@@ -433,17 +485,35 @@ def main():
     # config - 配置打印机
     config_parser = subparsers.add_parser('config', help='配置打印机连接')
     config_parser.add_argument('--host', required=True, help='打印机IP地址')
-    config_parser.add_argument('--access-code', dest='access_code', required=True, help='访问码')
+    config_parser.add_argument(
+        '--access-code',
+        dest='access_code',
+        help='访问码；省略时安全地隐藏输入，自动化环境才建议显式传入',
+    )
     config_parser.add_argument('--serial', required=True, help='序列号')
     config_parser.add_argument('--method', choices=sorted(SUPPORTED_QUEUE_METHODS),
                                default='mqtt', help='连接方式')
+    config_parser.add_argument(
+        '--developer-mode',
+        action='store_true',
+        help='确认打印机已显式启用 LAN Developer Mode',
+    )
+    config_parser.add_argument('--use-ams', action='store_true', help='使用 AMS 供料')
+    config_parser.add_argument(
+        '--ams-slot',
+        type=int,
+        choices=range(16),
+        default=0,
+        help='单色项目使用的 AMS 槽位 (0-15)',
+    )
+    config_parser.add_argument('--timelapse', action='store_true', help='启用延时摄影')
 
     # check-config - 本地配置检查
     subparsers.add_parser('check-config', help='检查本地打印机配置，不连接打印机')
 
     # discover - 发现打印机
     discover_parser = subparsers.add_parser('discover', help='发现局域网打印机')
-    discover_parser.add_argument('--timeout', type=float, default=3.0, help='搜索超时时间')
+    discover_parser.add_argument('--timeout', type=float, default=6.0, help='监听公告的秒数')
 
     # add - 添加任务
     add_parser = subparsers.add_parser('add', help='添加打印任务')

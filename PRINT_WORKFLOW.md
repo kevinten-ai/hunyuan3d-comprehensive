@@ -9,10 +9,10 @@
   -> Hunyuan3D 真实生成或 mock 演示
   -> STL/GLB/OBJ 模型文件
   -> 模型修复或检查，必要时转换为 slicer-input 3MF
-  -> Bambu Studio / OrcaSlicer 切片导出 ready-to-print 文件
+  -> Bambu Studio / OrcaSlicer 手动切片，或 Bambu Studio CLI 桥接自动切片
   -> 添加 ready-to-print 文件到 Bambu 打印队列
   -> 显式启动队列
-  -> 打印机 MQTT 状态监控
+  -> FTPS 上传文件，MQTT/TLS 启动并监控打印状态
 ```
 
 ## 1. 验证生成命令
@@ -85,17 +85,21 @@ copy config\printer.json.example config\printer.json
   "host": "YOUR_PRINTER_IP",
   "access_code": "YOUR_ACCESS_CODE",
   "serial": "YOUR_PRINTER_SERIAL",
-  "method": "mqtt"
+  "method": "mqtt",
+  "lan_developer_mode": false,
+  "use_ams": false,
+  "ams_mapping": [-1, -1, -1, -1, 0],
+  "timelapse": false
 }
 ```
 
 也可以用 CLI 写入:
 
 ```powershell
-python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
+python scripts/auto_print.py config --host YOUR_PRINTER_IP --serial YOUR_PRINTER_SERIAL --developer-mode
 ```
 
-`config/printer.json` 包含本地设备信息，不能提交到 Git。
+命令会隐藏输入 Access Code，避免凭据出现在 shell 历史和进程参数中。`config/printer.json` 包含本地设备信息，不能提交到 Git。使用 AMS 时增加 `--use-ams --ams-slot 0`。直接局域网控制要求打印机启用 LAN Only 模式或 Developer Mode；Developer Mode 的 MQTT/FTP 接口不受 Bambu Lab 官方支持，固件升级后可能变化。
 
 ## 5. 添加和启动 ready-to-print 文件
 
@@ -156,5 +160,6 @@ python scripts/ai_to_print.py text "a rabbit" --run-generator --no-print
 
 - 真实生成需要模型权重、依赖和兼容 GPU/CPU 环境。
 - 自动打印需要 Bambu 打印机与电脑在同一局域网。
-- 打印机需要启用本地网络控制，并提供正确 IP、Access Code 和 Serial。
-- MQTT 上传和打印命令仍需要在真实设备上验证。
+- 打印机需要启用 LAN Only 模式或 Developer Mode，并提供正确 IP、Access Code 和 Serial。
+- 本地已经实跑验证 Bambu Studio CLI 自动切片，生成包含 `Metadata/plate_1.gcode` 的 P1S 工程。
+- 仓库客户端的 FTPS 上传（TCP 990）、MQTT/TLS 状态/命令（TCP 8883）及真实打印闭环仍需要在真实设备上验证。

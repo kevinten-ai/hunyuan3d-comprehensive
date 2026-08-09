@@ -12,7 +12,7 @@
 - The Bambu queue only accepts ready-to-print files (`.gcode`, `.bgcode`, or Bambu/OrcaSlicer project `.3mf` with slice metadata); AI-to-print and continuous-print reject generated source geometry before queueing and instruct the user to convert plus slice first.
 - AI-to-print and continuous-print can use the bundled Bambu Studio bridge through `BAMBU_SLICER_COMMAND`; the bridge requires an existing executable and known-good project template, then auto-scales/orients/arranges/slices and validates the generated project before queueing.
 - `BAMBU_SLICER_OUTPUT_EXT` restricts the expected output extension to `.3mf`, `.gcode`, or `.bgcode`; unsupported values are rejected before slicer execution.
-- Bambu client tests cover default status fields, MQTT connection callback success/failure/timeout handling, MQTT report parsing, queue status serialization, HTTP upload success/failure return values, empty-file start rejection, and local `project_file` command payload construction.
+- Bambu client tests cover default and P1 status fields, MQTT connection callback success/failure/timeout handling, `device/{serial}` topics, full-status requests, queue status serialization, FTPS command construction without credentials in process arguments, empty-file start rejection, `project_file`/`gcode_file` payloads, matched device acknowledgements, command rejection, and pause/resume/stop envelopes.
 - `model_converter.py` returns nonzero for local CLI input failures and reports missing files without tracebacks.
 - `auto_print.py` returns nonzero for local add/remove/cancel/stop/clear failure paths instead of reporting a false-success CLI exit.
 - `ai_to_print.py` returns nonzero when generation does not produce a model, when print is requested without valid printer config, and when `ai_to_print.py discover` finds no printer locally; `--mock --no-print` remains a local success path.
@@ -93,13 +93,14 @@ These items still require environment or hardware changes before the full end-to
   - local screenshots confirm Bambu Studio is connected to a real P1S with AMS and show a completed print, but this is not repository protocol validation;
   - `scripts/auto_print.py discover --timeout 3` found no printer even though the Studio process had an established port 8883 session;
   - `config/printer.json` is absent;
-  - local config preflight is available through `python scripts/auto_print.py config/check-config`;
+  - local config preflight is available through `python scripts/auto_print.py config/check-config` and validates Developer Mode confirmation, AMS mapping, timelapse, and timeout values;
   - `scripts/ai_to_print.py` and `scripts/continuous_print.py` reuse the local preflight before queue creation;
-  - local protocol tests cover MQTT connection confirmation, status parsing, and `project_file` payload construction;
-  - MQTT upload/start/pause/resume/stop have not been validated against a real printer.
+  - the repository client uses implicit FTPS on TCP 990 for upload and MQTT/TLS on TCP 8883 with `device/{serial}/report` and `device/{serial}/request` for status, commands, and acknowledgements;
+  - Bambu Lab describes Developer Mode MQTT/FTP as unsupported interfaces, so compatibility can change with firmware;
+  - FTPS upload and MQTT start/pause/resume/stop have not been validated against a real printer.
 
 ## Suggested Next Steps
 
 1. Install CUDA Toolkit and Visual Studio Build Tools, compile `nvdiffrast` in the Hunyuan3D-1 venv, then rerun the real low-step text-to-3D validation.
 2. Validate full-quality Hunyuan3D-2 and ComfyUI generation settings and visual quality.
-3. Create local `config/printer.json` from `config/printer.json.example`, then validate Bambu upload and control commands on the real printer.
+3. Enable LAN Only or Developer Mode, create local `config/printer.json` from `config/printer.json.example`, then validate Bambu FTPS upload and MQTT control commands on the real printer.

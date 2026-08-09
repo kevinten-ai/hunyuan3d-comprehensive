@@ -29,6 +29,8 @@ class FakePrinter:
         self.pause_print_result = pause_print_result
         self.resume_print_result = resume_print_result
         self.start_print_called = False
+        self.start_print_call_count = 0
+        self.send_file_call_count = 0
         self.stop_print_called = False
         self.pause_print_called = False
         self.resume_print_called = False
@@ -41,10 +43,12 @@ class FakePrinter:
         return None
 
     def send_file(self, *_args, **_kwargs):
+        self.send_file_call_count += 1
         return self.send_file_result
 
     def start_print(self, *_args, **_kwargs):
         self.start_print_called = True
+        self.start_print_call_count += 1
         return self.start_print_result
 
     def stop_print(self):
@@ -302,6 +306,27 @@ class PrintQueueTests(unittest.TestCase):
             self.assertEqual(queue.status, QueueStatus.PAUSED)
             self.assertTrue(queue._pause_event.is_set())
 
+    def test_resume_active_job_returns_to_printing_without_restarting_it(self):
+        with TemporaryDirectory() as tmp:
+            queue = self.make_queue(Path(tmp) / "queue")
+            queue.printer = FakePrinter()
+            queue.status = QueueStatus.PAUSED
+            queue._pause_event.set()
+            queue.current_job = QueuedJob(
+                id="job123",
+                filepath="model.3mf",
+                name="active print",
+                status="printing",
+            )
+
+            self.assertTrue(queue.resume())
+
+            self.assertTrue(queue.printer.resume_print_called)
+            self.assertEqual(queue.status, QueueStatus.PRINTING)
+            self.assertFalse(queue._pause_event.is_set())
+            self.assertEqual(queue.printer.start_print_call_count, 0)
+            self.assertEqual(queue.printer.send_file_call_count, 0)
+
     def test_stop_current_job_fails_when_printer_stop_fails(self):
         with TemporaryDirectory() as tmp:
             queue = self.make_queue(Path(tmp) / "queue")
@@ -337,6 +362,8 @@ class PrintQueueTests(unittest.TestCase):
             self.assertTrue(queue.printer.stop_print_called)
             self.assertEqual(queue.status, QueueStatus.STOPPED)
             self.assertTrue(queue._stop_event.is_set())
+            self.assertIsNone(queue.current_job)
+            self.assertEqual(queue.get_history()[0]["status"], "cancelled")
 
     def test_clear_does_not_clear_when_stop_fails(self):
         with TemporaryDirectory() as tmp:

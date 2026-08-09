@@ -2,9 +2,9 @@
 拓竹(Bambu Lab)打印机自动打印模块
 
 支持多种连接方式:
-- MQTT: 当前实现的本地控制方式
-- HTTP: 仅用于文件上传尝试，仍需真实设备验证
-- Moonraker: 枚举保留，当前未实现连接流程
+- MQTT/TLS: Bambu LAN Developer Mode 状态与控制
+- FTPS: 通过系统 curl 上传 ready-to-print 文件
+- Moonraker/HTTP: 枚举保留，当前未实现连接流程
 
 示例:
     from bambu_print import BambuPrinterClient, PrintQueue, ConnectionType

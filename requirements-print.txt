@@ -3,8 +3,7 @@
 # 打印机控制
 paho-mqtt>=1.6.1
 
-# HTTP客户端(用于文件上传)
-requests>=2.28.0
+# 文件上传使用系统 curl 的隐式 FTPS 支持，不需要额外 Python HTTP 客户端。
 
 # 模型检查、修复和格式转换
 numpy>=1.24.0

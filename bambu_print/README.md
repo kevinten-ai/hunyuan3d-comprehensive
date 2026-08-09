@@ -12,8 +12,9 @@
 
 ## 当前实现边界
 
-- MQTT 是当前实现的主要控制方式。
-- HTTP 上传逻辑是实验性路径，仍需要真实设备验证；上传失败会返回 `False`，不会把文件缓存为可启动打印的远程文件。
+- 文件通过隐式 FTPS（TCP 990）上传，状态和控制命令通过 MQTT/TLS（TCP 8883）传输。
+- 打印机必须启用 LAN Only 模式或可选的 Developer Mode，并允许局域网控制。Bambu Lab 将 Developer Mode 的 MQTT/FTP 接口标记为不受官方支持，固件升级后可能变化。
+- 本仓库已用单元测试验证 FTPS 命令构造、MQTT 主题、P1 状态字段、命令回执和失败路径；尚未使用本仓库客户端对真实打印机完成上传、启动、暂停、恢复和停止验证。
 - `add` 只添加任务到队列，不会默认启动打印；请显式调用 `start()` 或运行 `python scripts/auto_print.py start`。
 
 ## 安装
@@ -24,7 +25,7 @@ python -m pip install -r requirements-print.txt
 
 依赖:
 - `paho-mqtt>=1.6.1` - MQTT 客户端
-- `requests>=2.28.0` - HTTP 文件上传
+- 系统 `curl` - 隐式 FTPS 文件上传（Windows 10/11 默认提供 `curl.exe`）
 
 ## 快速开始
 
@@ -39,7 +40,7 @@ python -m pip install -r requirements-print.txt
 
 ```powershell
 # 配置打印机
-python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
+python scripts/auto_print.py config --host YOUR_PRINTER_IP --serial YOUR_PRINTER_SERIAL --developer-mode
 python scripts/auto_print.py check-config
 
 # 添加打印任务
@@ -102,7 +103,7 @@ client = BambuPrinterClient(
 | `disconnect()` | 断开连接 |
 | `is_connected()` | 检查连接状态 |
 | `get_status()` | 获取打印机状态 |
-| `send_file(filepath)` | 发送文件到打印机；只有 HTTP 200/201 会返回成功并缓存远程文件名 |
+| `send_file(filepath)` | 通过 FTPS 上传文件；只有 `curl` 成功退出后才缓存远程文件名 |
 | `start_print(filename)` | 开始打印 |
 | `pause_print()` | 暂停打印 |
 | `resume_print()` | 恢复打印 |
@@ -171,7 +172,7 @@ job = queue.add("./bambu_project.3mf", name="我的模型", priority=5)
 from bambu_print import discover_printers
 
 # 发现局域网内的打印机
-printers = discover_printers(timeout=3.0)
+printers = discover_printers(timeout=6.0)
 # 返回: [{'ip': '192.0.2.25', 'name': 'Bambu Printer'}, ...]
 ```
 
@@ -179,7 +180,7 @@ printers = discover_printers(timeout=3.0)
 
 ```powershell
 # 配置
-python scripts/auto_print.py config --host YOUR_PRINTER_IP --access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL
+python scripts/auto_print.py config --host YOUR_PRINTER_IP --serial YOUR_PRINTER_SERIAL --developer-mode
 python scripts/auto_print.py check-config
 
 # 发现打印机
@@ -210,18 +211,20 @@ python scripts/auto_print.py cancel JOB_ID
 python scripts/auto_print.py clear --force
 ```
 
+`discover` 被动监听打印机约每五秒发送一次的 UDP 2021/1990 公告；默认监听六秒。若切片器占用了这两个端口，请关闭切片器后重试，或直接使用已知 IP 配置打印机。
+
 ## 工作原理
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    MQTT 协议通信                              │
+│                  FTPS + MQTT 局域网通信                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  Python Client ←→ MQTT Broker ←→ 拓竹打印机                   │
-│                      (port 8883)                            │
+│  文件上传: Python Client → FTPS → 拓竹打印机 (port 990)       │
+│  状态/控制: Python Client ↔ MQTT/TLS ↔ 拓竹打印机 (port 8883) │
 │                                                             │
-│  主题格式: p/{serial}/report/#     # 接收打印机状态           │
-│  主题格式: p/{serial}/request      # 发送控制命令            │
+│  主题格式: device/{serial}/report   # 接收状态和命令回执       │
+│  主题格式: device/{serial}/request  # 发送控制命令            │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -232,22 +235,22 @@ python scripts/auto_print.py clear --force
 
 ```python
 # 开始打印
-{"print": {"command": "project_file", "param": "bambu_project.3mf", ...}}
+{"print": {"command": "project_file", "param": "Metadata/plate_1.gcode", "url": "ftp:///bambu_project.3mf", ...}}
 
 # 暂停
-{"pause": {"command": "pause"}}
+{"print": {"command": "pause"}}
 
 # 恢复
-{"resume": {"command": "resume"}}
+{"print": {"command": "resume"}}
 
 # 停止
-{"stop": {"command": "stop"}}
+{"print": {"command": "stop"}}
 
 # 设置热床温度
-{"bed": {"command": "set_bed", "temp": 60}}
+{"print": {"command": "gcode_line", "param": "M140 S60\n"}}
 
 # 设置风扇
-{"fan": {"command": "set_fan", "fan": "part", "speed": 100}}
+{"print": {"command": "gcode_line", "param": "M106 P1 S255\n"}}
 ```
 
 ## 故障排除
@@ -257,15 +260,16 @@ python scripts/auto_print.py clear --force
 1. 确保打印机和电脑在同一网络
 2. 检查 IP 地址是否正确
 3. 检查 Access Code 是否正确
-4. 检查防火墙是否阻止了 8883 端口
+4. 确认打印机已启用 LAN Only 模式或 Developer Mode
+5. 检查防火墙是否阻止了 TCP 990 或 8883 端口
 
 ### 文件上传失败
 
-拓竹打印机可能需要先通过 Bambu Studio 或 SD 卡导入文件。打印队列只接收 ready-to-print 文件，例如带 Bambu/OrcaSlicer 项目元数据的 `.3mf`、`.gcode` 或 `.bgcode`；STL/OBJ/GLB 和普通几何 3MF 等源模型需要先转换给切片器打开，再切片导出。自动上传功能可能因固件版本而异；如果 HTTP 上传失败，`send_file()` 会返回 `False`，并且不会把该文件记录为可启动打印的远程文件。
+打印队列只接收 ready-to-print 文件，例如带 Bambu/OrcaSlicer 项目元数据的 `.3mf`、`.gcode` 或 `.bgcode`；STL/OBJ/GLB 和普通几何 3MF 等源模型需要先转换给切片器打开，再切片导出。请确认系统 `curl` 可用、Developer Mode 已开启且 TCP 990 可达。如果 FTPS 上传失败，`send_file()` 会返回 `False`，并且不会把该文件记录为可启动打印的远程文件。
 
 ### MQTT 连接被拒绝
 
-部分固件版本可能禁用了 MQTT。请检查打印机设置。
+确认 Developer Mode 已开启、TCP 8883 可达，并检查打印机 IP、Access Code 和序列号。客户端优先使用 `BAMBU_PRINTER_CA_CERT`，或自动查找 `BAMBU_SLICER_EXE` 旁的 `resources/cert/printer.cer` 来验证证书链；由于证书通常不匹配局域网 IP，主机名检查保持关闭。找不到 CA 时会明确警告并降级为加密但不认证设备证书的连接，只应在可信局域网内使用。
 
 ## 许可证
 

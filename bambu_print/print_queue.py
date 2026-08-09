@@ -119,7 +119,8 @@ class PrintQueue:
         serial: str,
         connection_type: ConnectionType = ConnectionType.MQTT,
         queue_dir: Optional[str] = None,
-        auto_start: bool = False
+        auto_start: bool = False,
+        printer_options: Optional[Dict[str, Any]] = None,
     ):
         """
         初始化打印队列
@@ -131,12 +132,14 @@ class PrintQueue:
             connection_type: 连接类型
             queue_dir: 队列存储目录
             auto_start: 是否自动启动队列
+            printer_options: AMS、延时摄影和网络超时等客户端选项
         """
         self.printer = BambuPrinterClient(
             host=printer_host,
             access_code=access_code,
             serial=serial,
-            connection_type=connection_type
+            connection_type=connection_type,
+            **(printer_options or {}),
         )
 
         # 队列目录
@@ -346,6 +349,8 @@ class PrintQueue:
                 return False
             self.current_job.status = "cancelled"
             self._add_to_history(self.current_job)
+            self.queue = [job for job in self.queue if job.id != job_id]
+            self._save_queue()
             self.current_job = None
             return True
         return self.remove(job_id)
@@ -389,7 +394,9 @@ class PrintQueue:
                     print("[队列] 恢复打印失败")
                     return False
             self._pause_event.clear()
-            self.status = QueueStatus.RUNNING
+            self.status = (
+                QueueStatus.PRINTING if self.current_job else QueueStatus.RUNNING
+            )
             print("[队列] 队列已继续")
             return True
         return False
@@ -400,6 +407,13 @@ class PrintQueue:
             if not self.printer.stop_print():
                 print("[队列] 停止打印失败")
                 return False
+            stopped_job = self.current_job
+            stopped_job.status = "cancelled"
+            stopped_job.error_message = "队列已停止"
+            self._add_to_history(stopped_job)
+            self.queue = [job for job in self.queue if job.id != stopped_job.id]
+            self._save_queue()
+            self.current_job = None
         self._stop_event.set()
         self.status = QueueStatus.STOPPED
         print("[队列] 队列已停止")
@@ -471,7 +485,8 @@ class PrintQueue:
             time.sleep(2)  # 等待文件上传完成
 
             # 开始打印
-            if not self.printer.start_print(filename):
+            # Use the exact ASCII remote name chosen by send_file().
+            if not self.printer.start_print():
                 print(f"[队列] 打印命令发送失败")
                 self.current_job.status = "failed"
                 self.current_job.error_message = "打印命令发送失败"
@@ -488,7 +503,9 @@ class PrintQueue:
                 self._on_job_start(self.current_job)
 
             # 监控打印进度
-            while self.status != QueueStatus.PAUSED and not self._stop_event.is_set():
+            while not self._stop_event.is_set():
+                if self.current_job is None:
+                    break
                 status = self.printer.get_status()
 
                 if self.current_job:

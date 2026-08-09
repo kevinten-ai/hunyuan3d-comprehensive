@@ -72,9 +72,10 @@ class AutoPrintCliTests(unittest.TestCase):
         output = stdout.getvalue()
         self.assertIn(
             "python scripts/auto_print.py config --host YOUR_PRINTER_IP "
-            "--access-code YOUR_ACCESS_CODE --serial YOUR_PRINTER_SERIAL",
+            "--serial YOUR_PRINTER_SERIAL",
             output,
         )
+        self.assertNotIn("--access-code YOUR_ACCESS_CODE", output)
         self.assertNotIn("python auto_print.py config", output)
         self.assertNotIn("YOUR_CODE", output)
         self.assertNotIn("SNXXX", output)

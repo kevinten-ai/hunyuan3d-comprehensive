@@ -19,7 +19,6 @@ class RequirementsTests(unittest.TestCase):
 
         for package in [
             "paho-mqtt",
-            "requests",
             "trimesh",
             "numpy-stl",
             "numpy",

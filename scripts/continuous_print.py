@@ -156,12 +156,14 @@ class ContinuousPrinter:
 
         try:
             from bambu_print import PrintQueue
+            from scripts.auto_print import printer_options_from_config
             self.print_queue = PrintQueue(
                 printer_host=self.printer_config['host'],
                 access_code=self.printer_config['access_code'],
-                serial=self.printer_config['serial']
+                serial=self.printer_config['serial'],
+                printer_options=printer_options_from_config(self.printer_config),
             )
-            logger.info(f"[OK] 已连接打印机: {self.printer_config['host']}")
+            logger.info(f"[OK] 已初始化打印机队列: {self.printer_config['host']}")
         except Exception as e:
             logger.error(f"打印机连接失败: {e}")
             self.print_queue = None

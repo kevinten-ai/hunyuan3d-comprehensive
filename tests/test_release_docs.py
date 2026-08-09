@@ -141,6 +141,62 @@ class ReleaseDocsTests(unittest.TestCase):
                 self.assertIn("scripts/system_preflight.py", content)
                 self.assertIn("--allow-incomplete", content)
 
+    def test_printer_docs_describe_current_lan_protocol(self):
+        protocol_docs = [
+            "README.md",
+            "PRINT_WORKFLOW.md",
+            "bambu_print/__init__.py",
+            "bambu_print/README.md",
+            "docs/HANDOFF.md",
+            "docs/PROJECT_STATUS.md",
+            "docs/RELEASE_READINESS.md",
+            "docs/VERIFICATION.md",
+        ]
+
+        for relative_path in protocol_docs:
+            with self.subTest(path=relative_path):
+                content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+
+                self.assertIn("FTPS", content)
+                self.assertIn("MQTT", content)
+                self.assertTrue(
+                    "Developer Mode" in content or "Developer mode" in content
+                )
+                self.assertNotIn("HTTP upload", content)
+                self.assertNotIn("HTTP 上传", content)
+                self.assertNotIn("MQTT upload", content)
+                self.assertNotIn("MQTT 上传", content)
+
+    def test_printer_docs_use_current_mqtt_topics(self):
+        for relative_path in [
+            "README.md",
+            "bambu_print/README.md",
+            "docs/HANDOFF.md",
+            "docs/PROJECT_STATUS.md",
+            "docs/RELEASE_READINESS.md",
+            "docs/VERIFICATION.md",
+        ]:
+            with self.subTest(path=relative_path):
+                content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+
+                self.assertIn("device/{serial}/report", content)
+                self.assertIn("device/{serial}/request", content)
+                self.assertNotIn("p/{serial}/report", content)
+                self.assertNotIn("p/{serial}/request", content)
+
+    def test_printer_config_examples_keep_access_code_out_of_shell_history(self):
+        for relative_path in [
+            "README.md",
+            "PRINT_WORKFLOW.md",
+            "bambu_print/README.md",
+            "docs/HANDOFF.md",
+            "scripts/auto_print.py",
+        ]:
+            with self.subTest(path=relative_path):
+                content = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+
+                self.assertNotIn("--access-code YOUR_ACCESS_CODE", content)
+
     def test_bambu_package_examples_use_copy_safe_placeholders(self):
         old_example_values = [
             "192.168.1.100",
